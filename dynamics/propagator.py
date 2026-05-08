@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable
 
 import numpy as np
 
@@ -31,8 +30,16 @@ class PropagationConfig:
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
 
 
+def _two_body_derivative(state: np.ndarray, mu_earth: float) -> np.ndarray:
+    r = state[:3]
+    v = state[3:]
+    rn = np.linalg.norm(r)
+    a = -mu_earth * r / (rn**3)
+    return np.hstack((v, a))
+
+
 def _fallback_two_body_propagation(config: PropagationConfig) -> tuple[np.ndarray, np.ndarray]:
-    """Numerical fallback propagation using SciPy-like fixed-step Euler.
+    """Numerical fallback propagation using fixed-step RK4.
 
     NOTE: this is a placeholder for architecture bootstrap only.
     Production propagation is expected from TudatPy integrators (RKF78 / DOP853).
@@ -44,14 +51,14 @@ def _fallback_two_body_propagation(config: PropagationConfig) -> tuple[np.ndarra
     times = np.linspace(0.0, config.duration_seconds, n_steps)
     states = np.zeros((n_steps, 6), dtype=float)
 
+    h = config.step_seconds
     for idx, _ in enumerate(times):
         states[idx] = state
-        r = state[:3]
-        v = state[3:]
-        rn = np.linalg.norm(r)
-        a = -mu_earth * r / (rn**3)
-        state[:3] = r + v * config.step_seconds
-        state[3:] = v + a * config.step_seconds
+        k1 = _two_body_derivative(state, mu_earth)
+        k2 = _two_body_derivative(state + 0.5 * h * k1, mu_earth)
+        k3 = _two_body_derivative(state + 0.5 * h * k2, mu_earth)
+        k4 = _two_body_derivative(state + h * k3, mu_earth)
+        state = state + (h / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
 
     return times + config.epoch_seconds, states
 

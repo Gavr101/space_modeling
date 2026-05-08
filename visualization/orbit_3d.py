@@ -39,6 +39,22 @@ def _earth_surface_sphere(radius_m: float = EARTH_RADIUS_M, opacity: float = 0.3
     )
 
 
+def _north_pole_arrow(radius_m: float = EARTH_RADIUS_M) -> go.Cone:
+    return go.Cone(
+        x=[0.0],
+        y=[0.0],
+        z=[radius_m * 1.02],
+        u=[0.0],
+        v=[0.0],
+        w=[radius_m * 0.35],
+        sizemode="absolute",
+        sizeref=radius_m * 0.08,
+        showscale=False,
+        name="North pole",
+        colorscale=[[0.0, "crimson"], [1.0, "crimson"]],
+    )
+
+
 def build_orbit_figure(
     states: list[np.ndarray] | np.ndarray,
     names: list[str] | None = None,
@@ -50,6 +66,7 @@ def build_orbit_figure(
     fig = go.Figure()
     if show_earth:
         fig.add_trace(_earth_surface_sphere())
+        fig.add_trace(_north_pole_arrow())
 
     for track, name in zip(trajectories, names, strict=False):
         fig.add_trace(
@@ -77,6 +94,8 @@ def build_orbit_figure(
     min_axis, max_axis = _axis_limits_from_trajectories(trajectories)
     fig.update_layout(
         title="Orbit visualization",
+        width=1100,
+        height=950,
         scene={
             "xaxis": {"range": [min_axis, max_axis], "title": "X, m"},
             "yaxis": {"range": [min_axis, max_axis], "title": "Y, m"},
