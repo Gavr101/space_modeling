@@ -40,4 +40,9 @@ pip install -e .
 jupyter notebook notebooks/orbit_propagation_demo.ipynb
 ```
 
+Быстрый запуск в Google Colab: [Open in Colab](https://colab.research.google.com/github/Gavr101/space_modeling/blob/main/notebooks/orbit_propagation_demo.ipynb).
+
 Для Google Colab в ноутбуке есть автоматическая установка зависимостей и клонирование репозитория.
+
+
+Дополнительный ноутбук по росту ошибки прогноза: [Open in Colab](https://colab.research.google.com/github/Gavr101/space_modeling/blob/main/notebooks/prediction_error_growth_demo.ipynb).

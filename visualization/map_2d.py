@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
 
+EARTH_ROTATION_RATE_RAD_S = 7.2921159e-5
+
 
 def ecef_to_latlon_deg(positions_ecef_m: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     x, y, z = positions_ecef_m[:, 0], positions_ecef_m[:, 1], positions_ecef_m[:, 2]
@@ -12,26 +14,37 @@ def ecef_to_latlon_deg(positions_ecef_m: np.ndarray) -> tuple[np.ndarray, np.nda
     return lat, lon
 
 
-def build_groundtrack_figure(
-    trajectories_ecef: list[np.ndarray] | np.ndarray,
-    names: list[str] | None = None,
-) -> go.Figure:
-    if isinstance(trajectories_ecef, np.ndarray):
-        trajectories_ecef = [trajectories_ecef]
+def eci_to_ecef(positions_eci_m: np.ndarray, elapsed_seconds: np.ndarray, theta0_rad: float = 0.0) -> np.ndarray:
+    thetas = theta0_rad + EARTH_ROTATION_RATE_RAD_S * elapsed_seconds
+    cos_t = np.cos(thetas)
+    sin_t = np.sin(thetas)
+    x = cos_t * positions_eci_m[:, 0] + sin_t * positions_eci_m[:, 1]
+    y = -sin_t * positions_eci_m[:, 0] + cos_t * positions_eci_m[:, 1]
+    z = positions_eci_m[:, 2]
+    return np.column_stack((x, y, z))
 
-    names = names or [f"Track {idx+1}" for idx in range(len(trajectories_ecef))]
+
+def build_groundtrack_figure(
+    trajectories_eci: list[np.ndarray] | np.ndarray,
+    names: list[str] | None = None,
+    elapsed_seconds: list[np.ndarray] | np.ndarray | None = None,
+    theta0_rad: float = 0.0,
+) -> go.Figure:
+    if isinstance(trajectories_eci, np.ndarray):
+        trajectories_eci = [trajectories_eci]
+
+    names = names or [f"Track {idx+1}" for idx in range(len(trajectories_eci))]
     fig = go.Figure()
 
-    for states, name in zip(trajectories_ecef, names, strict=False):
-        lat, lon = ecef_to_latlon_deg(states[:, :3])
-        fig.add_trace(
-            go.Scattergeo(
-                lon=lon,
-                lat=lat,
-                mode="lines",
-                name=name,
-            )
-        )
+    if elapsed_seconds is None:
+        elapsed_seconds = [np.arange(track.shape[0], dtype=float) for track in trajectories_eci]
+    elif isinstance(elapsed_seconds, np.ndarray):
+        elapsed_seconds = [elapsed_seconds]
+
+    for states, t_seconds, name in zip(trajectories_eci, elapsed_seconds, names, strict=False):
+        positions_ecef = eci_to_ecef(states[:, :3], t_seconds, theta0_rad=theta0_rad)
+        lat, lon = ecef_to_latlon_deg(positions_ecef)
+        fig.add_trace(go.Scattergeo(lon=lon, lat=lat, mode="lines", name=name))
 
     fig.update_layout(
         title="Satellite ground tracks",
