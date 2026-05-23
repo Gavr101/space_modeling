@@ -5,6 +5,7 @@ from enum import Enum
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation, get_body_barycentric
+from astropy.utils import iers
 from astropy.time import Time
 
 from .environment import EnvironmentConfig
@@ -58,6 +59,12 @@ try:
     from nrlmsise00 import msise_model as _nrlmsise_model
 except Exception:  # pragma: no cover - optional dependency
     _nrlmsise_model = None
+
+# Для ноутбуков (в т.ч. Colab) часто встречаются эпохи вне текущего IERS диапазона
+# или ограниченный интернет-доступ. Разрешаем использовать встроенные таблицы без
+# фатальных исключений и отключаем ограничение "свежести" авто-таблиц.
+iers.conf.auto_max_age = None
+iers.conf.iers_degraded_accuracy = "warn"
 
 
 def _datetime_from_epoch_seconds(epoch_seconds: float, t_seconds: float) -> datetime:
@@ -141,9 +148,16 @@ def _nrlmsise_density_kg_m3(epoch_seconds: float, t_seconds: float, r_gcrs: np.n
     f107a = 150.0
     f107 = 150.0
     ap = 4.0
-    out = _nrlmsise_model(dt.year, doy, sec, alt_km, lat, lon, 16.0, f107a, f107, ap)
-    rho_g_cm3 = out[5]
-    return rho_g_cm3 * 1000.0
+    try:
+        # Совместимо с python-пакетом nrlmsise00:
+        # msise_model(time, alt, lat, lon, f107a, f107, ap, ...)
+        out = _nrlmsise_model(dt, alt_km, lat, lon, f107a, f107, ap)
+        rho_g_cm3 = out[5]
+        return rho_g_cm3 * 1000.0
+    except Exception:
+        # Если конкретная сборка/версия nrlmsise00 ожидает иной формат аргументов
+        # или не смогла вычислить плотность, переключаемся на fallback-модель.
+        return np.nan
 
 
 def _exponential_density_kg_m3(r: np.ndarray) -> float:
