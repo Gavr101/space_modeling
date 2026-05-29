@@ -1,0 +1,35 @@
+# Скрытые папки
+data/
+
+# Виртуальное окружение
+.venv/
+.env/
+.env.local
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Операционные системы
+.DS_Store
+Thumbs.db
+
+# Логи и базы данных
+*.log
+*.sqlite3
+
+# PyCharm
+.idea/
+
+# Jupyter Notebook
+notebooks_backup/
+.ipynb_checkpoints/
+
+# Вспомогательное

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 import numpy as np
-from astropy import units as u
+from astropy import units as u # orekit, sp3 библиотека с экспериментальными данными
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation, get_body_barycentric
 from astropy.utils import iers
 from astropy.time import Time
