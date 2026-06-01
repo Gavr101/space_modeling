@@ -33,3 +33,4 @@ notebooks_backup/
 .ipynb_checkpoints/
 
 # Вспомогательное
+AGENTS.md

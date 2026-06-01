@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from tqdm import tqdm
 
 import numpy as np
 from astropy import units as u # orekit, sp3 библиотека с экспериментальными данными
@@ -250,7 +251,7 @@ def _fallback_two_body_propagation(config: PropagationConfig) -> tuple[np.ndarra
     states = np.zeros((n_steps, 6), dtype=float)
 
     h = config.step_seconds
-    for idx, t in enumerate(times):
+    for idx, t in tqdm(enumerate(times), total=len(times)):
         states[idx] = state
         k1 = _state_derivative(state, config, t)
         k2 = _state_derivative(state + 0.5 * h * k1, config, t + 0.5 * h)
