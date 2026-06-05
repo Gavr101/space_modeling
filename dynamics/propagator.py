@@ -1,15 +1,28 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from functools import lru_cache
+from typing import Literal
 from tqdm import tqdm
 
 import numpy as np
 from astropy import units as u # orekit, sp3 библиотека с экспериментальными данными
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation, get_body_barycentric
+from astropy.coordinates.builtin_frames.intermediate_rotation_transforms import (
+    cirs_to_itrs_mat,
+    gcrs_to_cirs_mat,
+)
 from astropy.utils import iers
 from astropy.time import Time
+from scipy.integrate import solve_ivp
 
 from .environment import EnvironmentConfig
+from .gravity_harmonics import harmonic_perturbing_acceleration, read_icgem_gfc
+from .space_weather import (
+    load_celestrak_space_weather_csv,
+    quiet_space_weather_sample,
+    sample_space_weather,
+)
 
 
 class PropagatorBackend(str, Enum):
@@ -39,9 +52,34 @@ class PropagationConfig:
     epoch_seconds: float
     duration_seconds: float
     step_seconds: float = 10.0
-    integrator: str = "DOP853"
-    spacecraft: SpacecraftProperties = field(default_factory=lambda: SpacecraftProperties(5.0, 2.2, 1.3, 0.05))
+    integrator: Literal["rk4_fixed", "dop853"] | str = "dop853"
+    rtol: float = 1e-10
+    atol: np.ndarray = field(
+        default_factory=lambda: np.array(
+            [1e-3, 1e-3, 1e-3, 1e-6, 1e-6, 1e-6],
+            dtype=float,
+        )
+    )
+    spacecraft: SpacecraftProperties = field(
+        default_factory=lambda: SpacecraftProperties(5.0, 2.2, 1.3, 0.05)
+    )
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
+
+    def __post_init__(self) -> None:
+        self.initial_state = np.asarray(self.initial_state, dtype=float)
+        if self.initial_state.shape != (6,):
+            raise ValueError(
+                "initial_state must have shape (6,) with [m, m, m, m/s, m/s, m/s]."
+            )
+        if self.duration_seconds < 0.0:
+            raise ValueError("duration_seconds must be non-negative.")
+        if self.step_seconds <= 0.0:
+            raise ValueError("step_seconds must be positive.")
+        if self.rtol <= 0.0:
+            raise ValueError("rtol must be positive.")
+
+        self.integrator = _normalize_integrator_name(self.integrator)
+        self.atol = _normalize_atol(self.atol)
 
 
 # --- Физические константы (SI) ---
@@ -51,8 +89,162 @@ J2_EARTH = 1.08262668e-3
 OMEGA_EARTH = np.array([0.0, 0.0, 7.2921150e-5])
 MU_SUN = 1.32712440018e20
 MU_MOON = 4.9048695e12
+R_SUN = 695700000.0
 AU_METERS = 149597870700.0
 SOLAR_PRESSURE_AT_1AU = 4.56e-6
+SPEED_OF_LIGHT = 299792458.0
+EARTH_IR_FLUX_W_M2 = 239.0
+SOLID_EARTH_LOVE_K2 = 0.3
+
+
+def _normalize_integrator_name(integrator: str) -> Literal["rk4_fixed", "dop853"]:
+    """Return the internal integrator name while accepting historical aliases."""
+    name = str(integrator).strip().lower()
+    aliases = {
+        "rk4": "rk4_fixed",
+        "rk4_fixed": "rk4_fixed",
+        "fixed_rk4": "rk4_fixed",
+        "dop853": "dop853",
+    }
+    try:
+        return aliases[name]  # type: ignore[return-value]
+    except KeyError as exc:
+        allowed = ", ".join(sorted(set(aliases.values())))
+        raise ValueError(
+            f"Unsupported integrator {integrator!r}. Supported values: {allowed}."
+        ) from exc
+
+
+def _normalize_atol(atol: float | np.ndarray) -> np.ndarray:
+    """Validate absolute tolerances for state [x, y, z, vx, vy, vz]."""
+    arr = np.asarray(atol, dtype=float)
+    if arr.shape == ():
+        if float(arr) <= 0.0:
+            raise ValueError("atol must be positive.")
+        return np.full(6, float(arr), dtype=float)
+    if arr.shape != (6,):
+        raise ValueError("atol must be a positive scalar or a 6-vector for [m, m/s] state.")
+    if not np.all(arr > 0.0):
+        raise ValueError("all atol components must be positive.")
+    return arr
+
+
+def _normalize_j2_frame(j2_frame: str) -> Literal["gcrs_fixed_axis", "itrs_body_fixed"]:
+    """Validate J2 frame choice."""
+    name = str(j2_frame).strip().lower()
+    if name in {"gcrs", "gcrs_fixed_axis"}:
+        return "gcrs_fixed_axis"
+    if name in {"itrs", "itrf", "itrs_body_fixed", "body_fixed"}:
+        return "itrs_body_fixed"
+    raise ValueError(
+        "Unsupported j2_frame "
+        f"{j2_frame!r}. Supported values: 'gcrs_fixed_axis', 'itrs_body_fixed'."
+    )
+
+
+def _normalize_earth_gravity_model(earth_gravity_model: str) -> Literal["j2", "egm2008"]:
+    """Validate Earth gravity model choice."""
+    name = str(earth_gravity_model).strip().lower()
+    if name in {"j2", "central_j2"}:
+        return "j2"
+    if name in {"egm2008", "spherical_harmonics"}:
+        return "egm2008"
+    raise ValueError(
+        "Unsupported earth_gravity_model "
+        f"{earth_gravity_model!r}. Supported values: 'j2', 'egm2008'."
+    )
+
+
+def _normalize_srp_shadow_model(srp_shadow_model: str) -> Literal["none", "cylindrical", "conical"]:
+    """Validate SRP shadow model choice."""
+    name = str(srp_shadow_model).strip().lower()
+    if name in {"none", "off", "false"}:
+        return "none"
+    if name in {"cylindrical", "cylinder"}:
+        return "cylindrical"
+    if name in {"conical", "cone"}:
+        return "conical"
+    raise ValueError(
+        "Unsupported srp_shadow_model "
+        f"{srp_shadow_model!r}. Supported values: 'none', 'cylindrical', 'conical'."
+    )
+
+
+def _normalize_earth_radiation_model(earth_radiation_model: str) -> Literal["none", "isotropic_ir"]:
+    """Validate Earth radiation pressure model choice."""
+    name = str(earth_radiation_model).strip().lower()
+    if name in {"none", "off", "false"}:
+        return "none"
+    if name in {"isotropic_ir", "ir", "earth_ir"}:
+        return "isotropic_ir"
+    raise ValueError(
+        "Unsupported earth_radiation_model "
+        f"{earth_radiation_model!r}. Supported values: 'none', 'isotropic_ir'."
+    )
+
+
+def _normalize_relativity_model(relativity_model: str) -> Literal["none", "schwarzschild"]:
+    """Validate relativistic correction model choice."""
+    name = str(relativity_model).strip().lower()
+    if name in {"none", "off", "false"}:
+        return "none"
+    if name in {"schwarzschild", "post_newtonian", "1pn"}:
+        return "schwarzschild"
+    raise ValueError(
+        "Unsupported relativity_model "
+        f"{relativity_model!r}. Supported values: 'none', 'schwarzschild'."
+    )
+
+
+def _normalize_tide_model(tide_model: str) -> Literal["none", "solid_earth_degree2"]:
+    """Validate solid/ocean tide model choice."""
+    name = str(tide_model).strip().lower()
+    if name in {"none", "off", "false"}:
+        return "none"
+    if name in {"solid_earth_degree2", "solid_earth", "degree2_solid"}:
+        return "solid_earth_degree2"
+    raise ValueError(
+        "Unsupported tide_model "
+        f"{tide_model!r}. Supported values: 'none', 'solid_earth_degree2'."
+    )
+
+
+def _select_density_model(force_models: object) -> Literal["exponential", "nrlmsise00"]:
+    """Return the active density model while honoring the historical bool flag."""
+    if not getattr(force_models, "nrlmsise00_atmosphere", True):
+        return "exponential"
+
+    name = str(getattr(force_models, "density_model", "nrlmsise00")).strip().lower()
+    if name in {"exponential", "exp"}:
+        return "exponential"
+    if name in {"nrlmsise00", "msise", "nrlmsise-00"}:
+        return "nrlmsise00"
+    raise ValueError(
+        "Unsupported density_model "
+        f"{name!r}. Supported values: 'exponential', 'nrlmsise00'."
+    )
+
+
+def _output_times(duration_seconds: float, step_seconds: float) -> np.ndarray:
+    """Build the saved-state grid; DOP853 may use smaller internal steps."""
+    if duration_seconds == 0.0:
+        return np.array([0.0], dtype=float)
+    times = np.arange(0.0, duration_seconds + 0.5 * step_seconds, step_seconds, dtype=float)
+    times = times[times <= duration_seconds]
+    if times.size == 0 or times[0] != 0.0:
+        times = np.insert(times, 0, 0.0)
+    if not np.isclose(times[-1], duration_seconds):
+        times = np.append(times, duration_seconds)
+    else:
+        times[-1] = duration_seconds
+    return times
+
+
+@lru_cache(maxsize=8192)
+def _gcrs_to_itrs_rotation(epoch_seconds: float, t_seconds: float) -> np.ndarray:
+    """Rotation matrix from GCRS coordinates to ITRS coordinates at UTC epoch."""
+    obstime = Time(epoch_seconds + t_seconds, format="unix", scale="utc")
+    return np.asarray(cirs_to_itrs_mat(obstime) @ gcrs_to_cirs_mat(obstime), dtype=float)
 
 
 try:
@@ -65,6 +257,7 @@ except Exception:  # pragma: no cover - optional dependency
 # или ограниченный интернет-доступ. Разрешаем использовать встроенные таблицы без
 # фатальных исключений и отключаем ограничение "свежести" авто-таблиц.
 iers.conf.auto_max_age = None
+iers.conf.auto_download = False
 iers.conf.iers_degraded_accuracy = "warn"
 
 
@@ -74,17 +267,15 @@ def _datetime_from_epoch_seconds(epoch_seconds: float, t_seconds: float) -> date
     return epoch + timedelta(seconds=t_seconds)
 
 
-def _earth_gravity_acceleration(r: np.ndarray, with_j2: bool) -> np.ndarray:
-    """Ускорение от поля Земли.
-
-    Базовая часть: центральное поле -μ r / |r|^3.
-    Поправка J2: учитывает сплюснутость Земли и даёт прецессию орбитальных элементов.
-    """
+def _central_earth_gravity_acceleration(r: np.ndarray) -> np.ndarray:
+    """Central spherical-Earth gravity acceleration in SI units."""
     rn = np.linalg.norm(r)
-    a = -MU_EARTH * r / (rn**3)
-    if not with_j2:
-        return a
+    return -MU_EARTH * r / (rn**3)
 
+
+def _j2_acceleration_fixed_axis(r: np.ndarray) -> np.ndarray:
+    """J2 perturbing acceleration for a frame whose z-axis is Earth's symmetry axis."""
+    rn = np.linalg.norm(r)
     x, y, z = r
     r2 = rn * rn
     z2 = z * z
@@ -93,7 +284,68 @@ def _earth_gravity_acceleration(r: np.ndarray, with_j2: bool) -> np.ndarray:
     ax = factor * x * (common - 1.0)
     ay = factor * y * (common - 1.0)
     az = factor * z * (common - 3.0)
-    return a + np.array([ax, ay, az])
+    return np.array([ax, ay, az])
+
+
+def _earth_gravity_acceleration(
+    r: np.ndarray,
+    with_j2: bool,
+    j2_frame: str = "gcrs_fixed_axis",
+    epoch_seconds: float | None = None,
+    t_seconds: float = 0.0,
+) -> np.ndarray:
+    """Ускорение от поля Земли.
+
+    Базовая часть: центральное поле -μ r / |r|^3.
+    Поправка J2: учитывает сплюснутость Земли и даёт прецессию орбитальных элементов.
+
+    `gcrs_fixed_axis` воспроизводит старый режим: J2 считается прямо в
+    координатах состояния. `itrs_body_fixed` поворачивает положение в ITRS,
+    считает J2 в земной системе и поворачивает ускорение обратно в GCRS.
+    """
+    a = _central_earth_gravity_acceleration(r)
+    if not with_j2:
+        return a
+
+    frame = _normalize_j2_frame(j2_frame)
+    if frame == "gcrs_fixed_axis":
+        return a + _j2_acceleration_fixed_axis(r)
+
+    if epoch_seconds is None:
+        raise ValueError("epoch_seconds is required for j2_frame='itrs_body_fixed'.")
+    rotation = _gcrs_to_itrs_rotation(float(epoch_seconds), float(t_seconds))
+    r_itrs = rotation @ r
+    a_j2_itrs = _j2_acceleration_fixed_axis(r_itrs)
+    return a + rotation.T @ a_j2_itrs
+
+
+def _egm2008_acceleration(
+    r_gcrs: np.ndarray,
+    config: PropagationConfig,
+    t_seconds: float,
+) -> np.ndarray:
+    """Central gravity plus static EGM2008-like harmonics from a local ICGEM file."""
+    if config.environment.gravity_coefficients_file is None:
+        raise ValueError(
+            "earth_gravity_model='egm2008' requires "
+            "EnvironmentConfig.gravity_coefficients_file."
+        )
+
+    fm = config.environment.force_models
+    coefficients = read_icgem_gfc(
+        str(config.environment.gravity_coefficients_file),
+        max_degree=fm.gravity_max_degree,
+        max_order=fm.gravity_max_order,
+    )
+    rotation = _gcrs_to_itrs_rotation(float(config.epoch_seconds), float(t_seconds))
+    r_itrs = rotation @ r_gcrs
+    a_harmonic_itrs = harmonic_perturbing_acceleration(
+        r_itrs,
+        coefficients,
+        max_degree=fm.gravity_max_degree,
+        max_order=fm.gravity_max_order,
+    )
+    return _central_earth_gravity_acceleration(r_gcrs) + rotation.T @ a_harmonic_itrs
 
 
 def _body_position_gcrs(body: str, epoch_seconds: float, t_seconds: float) -> np.ndarray:
@@ -113,10 +365,128 @@ def _third_body_acceleration(r_sc: np.ndarray, r_body: np.ndarray, mu_body: floa
     Так мы корректно описываем возмущение в геоцентрической системе координат.
     """
     d_sc_body = r_body - r_sc
-    return mu_body * (d_sc_body / np.linalg.norm(d_sc_body) ** 3 - r_body / np.linalg.norm(r_body) ** 3)
+    return mu_body * (
+        d_sc_body / np.linalg.norm(d_sc_body) ** 3
+        - r_body / np.linalg.norm(r_body) ** 3
+    )
 
 
-def _nrlmsise_density_kg_m3(epoch_seconds: float, t_seconds: float, r_gcrs: np.ndarray) -> float:
+def _degree2_solid_tide_body_acceleration(
+    r_sc: np.ndarray,
+    r_body: np.ndarray,
+    mu_body: float,
+) -> np.ndarray:
+    """Degree-2 solid-Earth tide acceleration from one external body [m/s^2].
+
+    The expression is the gradient of
+    k2 * mu_body * R_E^5 / |r_body|^3 / |r_sc|^3 * P2(cos(psi)).
+    Coordinates must be in the same geocentric frame; the propagator calls this
+    in ITRS and rotates the result back to GCRS.
+    """
+    r_norm = np.linalg.norm(r_sc)
+    body_norm = np.linalg.norm(r_body)
+    if r_norm <= R_EARTH or body_norm < 1.0:
+        return np.zeros(3)
+
+    body_hat = r_body / body_norm
+    projection = float(np.dot(r_sc, body_hat))
+    coefficient = SOLID_EARTH_LOVE_K2 * mu_body * R_EARTH**5 / body_norm**3
+    return 0.5 * coefficient * (
+        6.0 * projection * body_hat / r_norm**5
+        - 15.0 * projection**2 * r_sc / r_norm**7
+        + 3.0 * r_sc / r_norm**5
+    )
+
+
+def _circle_overlap_area(radius_a: float, radius_b: float, distance: float) -> float:
+    """Area of overlap for two circles in a local angular plane."""
+    if distance >= radius_a + radius_b:
+        return 0.0
+    if distance <= abs(radius_a - radius_b):
+        return np.pi * min(radius_a, radius_b) ** 2
+
+    arg_a = (distance**2 + radius_a**2 - radius_b**2) / (2.0 * distance * radius_a)
+    arg_b = (distance**2 + radius_b**2 - radius_a**2) / (2.0 * distance * radius_b)
+    arg_a = np.clip(arg_a, -1.0, 1.0)
+    arg_b = np.clip(arg_b, -1.0, 1.0)
+    area_a = radius_a**2 * np.arccos(arg_a)
+    area_b = radius_b**2 * np.arccos(arg_b)
+    area_c = 0.5 * np.sqrt(
+        max(
+            0.0,
+            (-distance + radius_a + radius_b)
+            * (distance + radius_a - radius_b)
+            * (distance - radius_a + radius_b)
+            * (distance + radius_a + radius_b),
+        )
+    )
+    return float(area_a + area_b - area_c)
+
+
+def _srp_illumination_factor(r_sc: np.ndarray, r_sun: np.ndarray, shadow_model: str) -> float:
+    """Fraction of the solar disk visible from the spacecraft.
+
+    `none` returns 1.0. `cylindrical` uses an infinite cylinder behind Earth.
+    `conical` models Sun and Earth as angular disks and returns a smooth
+    penumbra factor in [0, 1].
+    """
+    model = _normalize_srp_shadow_model(shadow_model)
+    if model == "none":
+        return 1.0
+
+    sun_distance = np.linalg.norm(r_sun)
+    sc_distance = np.linalg.norm(r_sc)
+    if sun_distance < 1.0 or sc_distance <= R_EARTH:
+        return 0.0
+
+    sun_hat = r_sun / sun_distance
+    projection = np.dot(r_sc, sun_hat)
+    behind_earth = projection < 0.0
+    perpendicular_distance = np.linalg.norm(r_sc - projection * sun_hat)
+    if model == "cylindrical":
+        return 0.0 if behind_earth and perpendicular_distance < R_EARTH else 1.0
+
+    if not behind_earth:
+        return 1.0
+
+    sun_from_sc = r_sun - r_sc
+    sun_from_sc_distance = np.linalg.norm(sun_from_sc)
+    if sun_from_sc_distance < 1.0:
+        return 1.0
+
+    earth_from_sc = -r_sc
+    cos_separation = np.dot(sun_from_sc, earth_from_sc) / (
+        sun_from_sc_distance * sc_distance
+    )
+    separation = float(np.arccos(np.clip(cos_separation, -1.0, 1.0)))
+    earth_angular_radius = float(np.arcsin(np.clip(R_EARTH / sc_distance, 0.0, 1.0)))
+    sun_angular_radius = float(
+        np.arcsin(np.clip(R_SUN / sun_from_sc_distance, 0.0, 1.0))
+    )
+
+    overlap = _circle_overlap_area(earth_angular_radius, sun_angular_radius, separation)
+    sun_disk_area = np.pi * sun_angular_radius**2
+    if sun_disk_area <= 0.0:
+        return 1.0
+    return float(np.clip(1.0 - overlap / sun_disk_area, 0.0, 1.0))
+
+
+def _space_weather_sample_for_config(config: PropagationConfig, dt: datetime):
+    """Return configured space-weather indices or explicit quiet constants."""
+    if config.environment.space_weather_file is None:
+        return quiet_space_weather_sample()
+    try:
+        records = load_celestrak_space_weather_csv(str(config.environment.space_weather_file))
+        return sample_space_weather(dt, records)
+    except Exception:
+        return quiet_space_weather_sample()
+
+
+def _nrlmsise_density_kg_m3(
+    config: PropagationConfig,
+    t_seconds: float,
+    r_gcrs: np.ndarray,
+) -> float:
     """Плотность атмосферы из NRLMSISE-00 в кг/м^3.
 
     Модель принимает геодезические широту/долготу/высоту, поэтому выполняем
@@ -125,7 +495,7 @@ def _nrlmsise_density_kg_m3(epoch_seconds: float, t_seconds: float, r_gcrs: np.n
     if _nrlmsise_model is None:
         return np.nan
 
-    dt = _datetime_from_epoch_seconds(epoch_seconds, t_seconds)
+    dt = _datetime_from_epoch_seconds(config.epoch_seconds, t_seconds)
     obs_time = Time(dt)
 
     gcrs = GCRS(
@@ -144,16 +514,22 @@ def _nrlmsise_density_kg_m3(epoch_seconds: float, t_seconds: float, r_gcrs: np.n
     doy = int(obs_time.yday.split(":")[1])
     sec = dt.hour * 3600 + dt.minute * 60 + dt.second + dt.microsecond * 1e-6
 
-    # При отсутствии внешних индексов солнечной/геомагнитной активности
-    # используем типичные "спокойные" значения.
-    f107a = 150.0
-    f107 = 150.0
-    ap = 4.0
+    space_weather = _space_weather_sample_for_config(config, dt)
     try:
         # Совместимо с python-пакетом nrlmsise00:
         # msise_model(time, alt, lat, lon, f107a, f107, ap, ...)
-        out = _nrlmsise_model(dt, alt_km, lat, lon, f107a, f107, ap)
-        rho_g_cm3 = out[5]
+        out = _nrlmsise_model(
+            dt,
+            alt_km,
+            lat,
+            lon,
+            space_weather.f107a,
+            space_weather.f107,
+            space_weather.ap,
+            method="gtd7d",
+        )
+        densities = out[0] if isinstance(out, tuple) else out
+        rho_g_cm3 = densities[5]
         return rho_g_cm3 * 1000.0
     except Exception:
         # Если конкретная сборка/версия nrlmsise00 ожидает иной формат аргументов
@@ -170,7 +546,11 @@ def _exponential_density_kg_m3(r: np.ndarray) -> float:
     return rho0 * np.exp(-(alt - h0) / scale_height)
 
 
-def _drag_acceleration(state: np.ndarray, config: PropagationConfig, t_seconds: float) -> np.ndarray:
+def _drag_acceleration(
+    state: np.ndarray,
+    config: PropagationConfig,
+    t_seconds: float,
+) -> np.ndarray:
     """Аэродинамическое сопротивление.
 
     Формула: a_drag = -0.5 * Cd * A/m * rho * |v_rel| * v_rel.
@@ -179,8 +559,8 @@ def _drag_acceleration(state: np.ndarray, config: PropagationConfig, t_seconds: 
     r = state[:3]
     v = state[3:]
     rho = np.nan
-    if config.environment.force_models.nrlmsise00_atmosphere:
-        rho = _nrlmsise_density_kg_m3(config.epoch_seconds, t_seconds, r)
+    if _select_density_model(config.environment.force_models) == "nrlmsise00":
+        rho = _nrlmsise_density_kg_m3(config, t_seconds, r)
     if not np.isfinite(rho):
         rho = _exponential_density_kg_m3(r)
 
@@ -193,27 +573,124 @@ def _drag_acceleration(state: np.ndarray, config: PropagationConfig, t_seconds: 
     return -bc * rho * speed * v_rel
 
 
-def _solar_radiation_pressure_acceleration(state: np.ndarray, config: PropagationConfig, t_seconds: float) -> np.ndarray:
-    """Ускорение от давления солнечного излучения (SRP), без модели затенения Землёй."""
+def _solar_radiation_pressure_acceleration(
+    state: np.ndarray,
+    config: PropagationConfig,
+    t_seconds: float,
+) -> np.ndarray:
+    """Ускорение от давления солнечного излучения (SRP) с опциональной тенью Земли."""
     r = state[:3]
     r_sun = _body_position_gcrs("sun", config.epoch_seconds, t_seconds)
+    illumination = _srp_illumination_factor(
+        r,
+        r_sun,
+        config.environment.force_models.srp_shadow_model,
+    )
+    if illumination <= 0.0:
+        return np.zeros(3)
+
     d_sun_sc = r - r_sun
     dist = np.linalg.norm(d_sun_sc)
     if dist < 1.0:
         return np.zeros(3)
     p = SOLAR_PRESSURE_AT_1AU * (AU_METERS / dist) ** 2
     coeff = p * config.spacecraft.cr * config.spacecraft.reference_area / config.spacecraft.mass
-    return coeff * (d_sun_sc / dist)
+    return illumination * coeff * (d_sun_sc / dist)
 
 
-def _total_acceleration(state: np.ndarray, config: PropagationConfig, t_seconds: float) -> np.ndarray:
+def _earth_ir_pressure_acceleration(state: np.ndarray, config: PropagationConfig) -> np.ndarray:
+    """Isotropic Earth thermal-IR radiation pressure acceleration [m/s^2].
+
+    The model treats Earth as a spherical isotropic emitter with mean outgoing
+    longwave flux `EARTH_IR_FLUX_W_M2` at radius `R_EARTH`.
+    """
+    model = _normalize_earth_radiation_model(
+        config.environment.force_models.earth_radiation_model
+    )
+    if model == "none":
+        return np.zeros(3)
+
+    r = state[:3]
+    rn = np.linalg.norm(r)
+    if rn <= R_EARTH:
+        return np.zeros(3)
+
+    flux = EARTH_IR_FLUX_W_M2 * (R_EARTH / rn) ** 2
+    pressure = flux / SPEED_OF_LIGHT
+    coeff = (
+        pressure
+        * config.spacecraft.cr
+        * config.spacecraft.reference_area
+        / config.spacecraft.mass
+    )
+    return coeff * (r / rn)
+
+
+def _relativistic_acceleration(state: np.ndarray, config: PropagationConfig) -> np.ndarray:
+    """Schwarzschild post-Newtonian correction for Earth central gravity [m/s^2]."""
+    model = _normalize_relativity_model(config.environment.force_models.relativity_model)
+    if model == "none":
+        return np.zeros(3)
+
+    r = state[:3]
+    v = state[3:]
+    rn = np.linalg.norm(r)
+    if rn < 1.0:
+        return np.zeros(3)
+
+    v2 = float(np.dot(v, v))
+    rv = float(np.dot(r, v))
+    factor = MU_EARTH / (SPEED_OF_LIGHT**2 * rn**3)
+    return factor * (
+        (4.0 * MU_EARTH / rn - v2) * r
+        + 4.0 * rv * v
+    )
+
+
+def _solid_earth_tide_acceleration(
+    state: np.ndarray,
+    config: PropagationConfig,
+    t_seconds: float,
+) -> np.ndarray:
+    """Degree-2 solid Earth tide correction from Moon and Sun [m/s^2]."""
+    model = _normalize_tide_model(config.environment.force_models.tide_model)
+    if model == "none":
+        return np.zeros(3)
+
+    rotation = _gcrs_to_itrs_rotation(float(config.epoch_seconds), float(t_seconds))
+    r_itrs = rotation @ state[:3]
+    r_moon_itrs = rotation @ _body_position_gcrs("moon", config.epoch_seconds, t_seconds)
+    r_sun_itrs = rotation @ _body_position_gcrs("sun", config.epoch_seconds, t_seconds)
+
+    a_itrs = (
+        _degree2_solid_tide_body_acceleration(r_itrs, r_moon_itrs, MU_MOON)
+        + _degree2_solid_tide_body_acceleration(r_itrs, r_sun_itrs, MU_SUN)
+    )
+    return rotation.T @ a_itrs
+
+
+def _total_acceleration(
+    state: np.ndarray,
+    config: PropagationConfig,
+    t_seconds: float,
+) -> np.ndarray:
     """Сумма всех включённых в конфигурации ускорений-возмущений."""
     fm = config.environment.force_models
     r = state[:3]
 
     a = np.zeros(3)
     if fm.spherical_earth_gravity:
-        a += _earth_gravity_acceleration(r, with_j2=fm.earth_j2)
+        gravity_model = _normalize_earth_gravity_model(fm.earth_gravity_model)
+        if gravity_model == "j2":
+            a += _earth_gravity_acceleration(
+                r,
+                with_j2=fm.earth_j2,
+                j2_frame=fm.j2_frame,
+                epoch_seconds=config.epoch_seconds,
+                t_seconds=t_seconds,
+            )
+        elif gravity_model == "egm2008":
+            a += _egm2008_acceleration(r, config, t_seconds)
 
     if fm.third_body_sun:
         r_sun = _body_position_gcrs("sun", config.epoch_seconds, t_seconds)
@@ -228,6 +705,15 @@ def _total_acceleration(state: np.ndarray, config: PropagationConfig, t_seconds:
 
     if fm.solar_radiation_pressure:
         a += _solar_radiation_pressure_acceleration(state, config, t_seconds)
+
+    if fm.earth_radiation_model != "none":
+        a += _earth_ir_pressure_acceleration(state, config)
+
+    if fm.relativity_model != "none":
+        a += _relativistic_acceleration(state, config)
+
+    if fm.tide_model != "none":
+        a += _solid_earth_tide_acceleration(state, config, t_seconds)
 
     return a
 
@@ -246,13 +732,14 @@ def _fallback_two_body_propagation(config: PropagationConfig) -> tuple[np.ndarra
     но фактически здесь уже не "two-body", а многосиловая модель.
     """
     state = config.initial_state.astype(float).copy()
-    n_steps = int(config.duration_seconds // config.step_seconds) + 1
-    times = np.linspace(0.0, config.duration_seconds, n_steps)
-    states = np.zeros((n_steps, 6), dtype=float)
+    times = _output_times(config.duration_seconds, config.step_seconds)
+    states = np.zeros((len(times), 6), dtype=float)
 
-    h = config.step_seconds
     for idx, t in tqdm(enumerate(times), total=len(times)):
         states[idx] = state
+        if idx == len(times) - 1:
+            break
+        h = times[idx + 1] - t
         k1 = _state_derivative(state, config, t)
         k2 = _state_derivative(state + 0.5 * h * k1, config, t + 0.5 * h)
         k3 = _state_derivative(state + 0.5 * h * k2, config, t + 0.5 * h)
@@ -260,6 +747,34 @@ def _fallback_two_body_propagation(config: PropagationConfig) -> tuple[np.ndarra
         state = state + (h / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
 
     return times + config.epoch_seconds, states
+
+
+def _dop853_propagation(config: PropagationConfig) -> tuple[np.ndarray, np.ndarray]:
+    """Adaptive DOP853 integration with saved states on the configured output grid.
+
+    `step_seconds` controls only `t_eval`; SciPy chooses internal steps from
+    `rtol` and the 6-component `atol` vector.
+    """
+    times = _output_times(config.duration_seconds, config.step_seconds)
+    if config.duration_seconds == 0.0:
+        return times + config.epoch_seconds, config.initial_state.reshape(1, 6).copy()
+
+    def rhs(t_seconds: float, state: np.ndarray) -> np.ndarray:
+        return _state_derivative(state, config, t_seconds)
+
+    solution = solve_ivp(
+        rhs,
+        (0.0, config.duration_seconds),
+        config.initial_state,
+        method="DOP853",
+        t_eval=times,
+        rtol=config.rtol,
+        atol=config.atol,
+    )
+    if not solution.success:
+        raise RuntimeError(f"DOP853 propagation failed: {solution.message}")
+
+    return solution.t + config.epoch_seconds, solution.y.T
 
 
 def propagate_orbit(
@@ -273,4 +788,8 @@ def propagate_orbit(
     """
 
     _ = backend
-    return _fallback_two_body_propagation(config)
+    if config.integrator == "rk4_fixed":
+        return _fallback_two_body_propagation(config)
+    if config.integrator == "dop853":
+        return _dop853_propagation(config)
+    raise ValueError(f"Unsupported integrator {config.integrator!r}.")

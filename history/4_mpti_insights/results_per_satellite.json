@@ -1,0 +1,401 @@
+{
+  "horizon_hours": 12,
+  "ordering": "baseline first, then scenarios by mean final model-model position influence across satellites",
+  "satellites": [
+    "CASSIOPE / Swarm-E",
+    "Sentinel-1B",
+    "Sentinel-1A",
+    "Swarm B",
+    "Swarm C",
+    "Swarm A"
+  ],
+  "records": [
+    {
+      "name": "Baseline",
+      "sort_influence_m": 0.0,
+      "figure": "",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 0.5498552254052699,
+          "final_dv_km_s": 0.0004460204926344765
+        },
+        "Sentinel-1B": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 0.5133123863942408,
+          "final_dv_km_s": 0.0007733673497429506
+        },
+        "Sentinel-1A": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 3.2352927673244447,
+          "final_dv_km_s": 0.0036038044136013267
+        },
+        "Swarm B": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 2.204943434693098,
+          "final_dv_km_s": 0.002146461927852082
+        },
+        "Swarm C": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 8.2682059618091,
+          "final_dv_km_s": 0.008886962996687743
+        },
+        "Swarm A": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 8.186139982155076,
+          "final_dv_km_s": 0.008809484331078853
+        }
+      }
+    },
+    {
+      "name": "2. Gravity Field EGM2008",
+      "sort_influence_m": 4653.622569612459,
+      "figure": "2_gravity_field_egm2008.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 3681.800531654312,
+          "influence_mm_s": 3624.620552197659,
+          "final_dr_km": 3.993874924072108,
+          "final_dv_km_s": 0.003612280564565334
+        },
+        "Sentinel-1B": {
+          "influence_m": 4270.104786444422,
+          "influence_mm_s": 4250.65032773955,
+          "final_dr_km": 4.760690054071085,
+          "final_dv_km_s": 0.0049960841033100875
+        },
+        "Sentinel-1A": {
+          "influence_m": 1685.0345441158438,
+          "influence_mm_s": 1613.1110241057495,
+          "final_dr_km": 4.919342254065754,
+          "final_dv_km_s": 0.00520841709361663
+        },
+        "Swarm B": {
+          "influence_m": 7009.138272391877,
+          "influence_mm_s": 7827.832702272758,
+          "final_dr_km": 9.213836774772595,
+          "final_dv_km_s": 0.009974236736775303
+        },
+        "Swarm C": {
+          "influence_m": 5674.194999885856,
+          "influence_mm_s": 6072.199597276801,
+          "final_dr_km": 2.622167323862316,
+          "final_dv_km_s": 0.0028564127139489104
+        },
+        "Swarm A": {
+          "influence_m": 5601.462283182445,
+          "influence_mm_s": 5976.864013886878,
+          "final_dr_km": 2.6073695297857973,
+          "final_dv_km_s": 0.002868904838670009
+        }
+      }
+    },
+    {
+      "name": "1. rk4_fixed integrator",
+      "sort_influence_m": 507.8817090862478,
+      "figure": "1_rk4_fixed_integrator.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 433.601580401228,
+          "influence_mm_s": 405.113644664421,
+          "final_dr_km": 0.8486038309608418,
+          "final_dv_km_s": 0.0005658735149105932
+        },
+        "Sentinel-1B": {
+          "influence_m": 440.4932332516496,
+          "influence_mm_s": 467.9409065061891,
+          "final_dr_km": 0.9445584709471969,
+          "final_dv_km_s": 0.0012324221868004368
+        },
+        "Sentinel-1A": {
+          "influence_m": 440.24354605678906,
+          "influence_mm_s": 469.2795412075739,
+          "final_dr_km": 2.7951515570992744,
+          "final_dv_km_s": 0.0031352074253030633
+        },
+        "Swarm B": {
+          "influence_m": 561.459754506107,
+          "influence_mm_s": 619.6644911605222,
+          "final_dr_km": 2.7661858167097146,
+          "final_dv_km_s": 0.002765820028302869
+        },
+        "Swarm C": {
+          "influence_m": 585.7463074781925,
+          "influence_mm_s": 648.3838676478075,
+          "final_dr_km": 7.682854567539142,
+          "final_dv_km_s": 0.008239041841531757
+        },
+        "Swarm A": {
+          "influence_m": 585.7458328235209,
+          "influence_mm_s": 648.3656516786327,
+          "final_dr_km": 7.600818192639585,
+          "final_dv_km_s": 0.0081616236653321
+        }
+      }
+    },
+    {
+      "name": "3. Atmosphere NRLMSISE-00",
+      "sort_influence_m": 215.1401988074155,
+      "figure": "3_atmosphere_nrlmsise_00.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 351.0653021412974,
+          "influence_mm_s": 337.3297328168211,
+          "final_dr_km": 0.7727777739809708,
+          "final_dv_km_s": 0.000514832886620982
+        },
+        "Sentinel-1B": {
+          "influence_m": 4.52786185225871,
+          "influence_mm_s": 4.768368909362262,
+          "final_dr_km": 0.5176753448712116,
+          "final_dv_km_s": 0.0007779959091817342
+        },
+        "Sentinel-1A": {
+          "influence_m": 46.915598227781416,
+          "influence_mm_s": 50.23820039512647,
+          "final_dr_km": 3.1883827001531166,
+          "final_dv_km_s": 0.003553629561914611
+        },
+        "Swarm B": {
+          "influence_m": 203.02409073667027,
+          "influence_mm_s": 225.8009637219237,
+          "final_dr_km": 2.4078636200521797,
+          "final_dv_km_s": 0.00237214141374853
+        },
+        "Swarm C": {
+          "influence_m": 343.1977094141181,
+          "influence_mm_s": 380.8740429121338,
+          "final_dr_km": 7.925169071232734,
+          "final_dv_km_s": 0.00850625432583992
+        },
+        "Swarm A": {
+          "influence_m": 342.11063047236723,
+          "influence_mm_s": 379.7130798019063,
+          "final_dr_km": 7.8442045614682865,
+          "final_dv_km_s": 0.008429954336168438
+        }
+      }
+    },
+    {
+      "name": "7. Solid Earth tides",
+      "sort_influence_m": 10.344054306734025,
+      "figure": "7_solid_earth_tides.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 5.953267213477294,
+          "influence_mm_s": 6.013680303191531,
+          "final_dr_km": 0.5478739970499192,
+          "final_dv_km_s": 0.0004462003887346902
+        },
+        "Sentinel-1B": {
+          "influence_m": 17.687097280688075,
+          "influence_mm_s": 19.161582038512375,
+          "final_dr_km": 0.49645343578132983,
+          "final_dv_km_s": 0.0007545300973549593
+        },
+        "Sentinel-1A": {
+          "influence_m": 14.767092166630576,
+          "influence_mm_s": 16.5839688708012,
+          "final_dr_km": 3.250020623525447,
+          "final_dv_km_s": 0.0036198350984722083
+        },
+        "Swarm B": {
+          "influence_m": 9.45603556545066,
+          "influence_mm_s": 10.481429311543348,
+          "final_dr_km": 2.21437403447462,
+          "final_dv_km_s": 0.00215693365397744
+        },
+        "Swarm C": {
+          "influence_m": 7.255091356470154,
+          "influence_mm_s": 6.916763446909317,
+          "final_dr_km": 8.2744598419321,
+          "final_dv_km_s": 0.008893876026463915
+        },
+        "Swarm A": {
+          "influence_m": 6.945742257687392,
+          "influence_mm_s": 6.553825608366887,
+          "final_dr_km": 8.192073748824544,
+          "final_dv_km_s": 0.008816034329133105
+        }
+      }
+    },
+    {
+      "name": "8. Schwarzschild relativity",
+      "sort_influence_m": 1.179334306076717,
+      "figure": "8_schwarzschild_relativity.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 0.8028199154803984,
+          "influence_mm_s": 0.8279732434653738,
+          "final_dr_km": 0.54948643861487,
+          "final_dv_km_s": 0.0004461463283022301
+        },
+        "Sentinel-1B": {
+          "influence_m": 1.1886478202037702,
+          "influence_mm_s": 1.2727162216841021,
+          "final_dr_km": 0.5121734477561125,
+          "final_dv_km_s": 0.0007721335500908927
+        },
+        "Sentinel-1A": {
+          "influence_m": 1.1930874192871328,
+          "influence_mm_s": 1.278136480810719,
+          "final_dr_km": 3.236485786166483,
+          "final_dv_km_s": 0.0036050809553220477
+        },
+        "Swarm B": {
+          "influence_m": 1.2836074591112072,
+          "influence_mm_s": 1.4094521418293715,
+          "final_dr_km": 2.2036602246383037,
+          "final_dv_km_s": 0.002145053526412796
+        },
+        "Swarm C": {
+          "influence_m": 1.3039472733052282,
+          "influence_mm_s": 1.437003456910308,
+          "final_dr_km": 8.269509451953944,
+          "final_dv_km_s": 0.008888398985904999
+        },
+        "Swarm A": {
+          "influence_m": 1.3038959490725655,
+          "influence_mm_s": 1.436917696190629,
+          "final_dr_km": 8.187443381130851,
+          "final_dv_km_s": 0.008810920145613192
+        }
+      }
+    },
+    {
+      "name": "4. Cylindrical Earth shadow",
+      "sort_influence_m": 0.9031617594306987,
+      "figure": "4_cylindrical_earth_shadow.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 4.236678087429805,
+          "influence_mm_s": 3.8798746261049857,
+          "final_dr_km": 0.5516243773838616,
+          "final_dv_km_s": 0.0004451645082013941
+        },
+        "Sentinel-1B": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 0.5133123863942408,
+          "final_dv_km_s": 0.0007733673497429506
+        },
+        "Sentinel-1A": {
+          "influence_m": 0.3519537361423588,
+          "influence_mm_s": 0.3399658494890853,
+          "final_dr_km": 3.234940863165622,
+          "final_dv_km_s": 0.0036034722236631352
+        },
+        "Swarm B": {
+          "influence_m": 0.5844460356936376,
+          "influence_mm_s": 0.7128963421980976,
+          "final_dr_km": 2.204403534886698,
+          "final_dv_km_s": 0.002145791550422893
+        },
+        "Swarm C": {
+          "influence_m": 0.15955749084374793,
+          "influence_mm_s": 0.13561696068077142,
+          "final_dr_km": 8.268075343817028,
+          "final_dv_km_s": 0.008886859197229586
+        },
+        "Swarm A": {
+          "influence_m": 0.0863352064746429,
+          "influence_mm_s": 0.10130265969657214,
+          "final_dr_km": 8.186168350812256,
+          "final_dv_km_s": 0.00880954540505055
+        }
+      }
+    },
+    {
+      "name": "5. Conical Earth shadow",
+      "sort_influence_m": 0.8498944273822603,
+      "figure": "5_conical_earth_shadow.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 4.235630905838391,
+          "influence_mm_s": 3.878830858802904,
+          "final_dr_km": 0.5516241924648251,
+          "final_dv_km_s": 0.00044516483585271664
+        },
+        "Sentinel-1B": {
+          "influence_m": 0.0,
+          "influence_mm_s": 0.0,
+          "final_dr_km": 0.5133123863942408,
+          "final_dv_km_s": 0.0007733673497429506
+        },
+        "Sentinel-1A": {
+          "influence_m": 0.11606542656587225,
+          "influence_mm_s": 0.11071829078588209,
+          "final_dr_km": 3.2351767619076512,
+          "final_dv_km_s": 0.003603708839012388
+        },
+        "Swarm B": {
+          "influence_m": 0.5779855153166539,
+          "influence_mm_s": 0.7056128762251919,
+          "final_dr_km": 2.2044101625808983,
+          "final_dv_km_s": 0.0021457989462400216
+        },
+        "Swarm C": {
+          "influence_m": 0.0826324011471167,
+          "influence_mm_s": 0.075350218648944,
+          "final_dr_km": 8.26817324524773,
+          "final_dv_km_s": 0.008886958539439747
+        },
+        "Swarm A": {
+          "influence_m": 0.08705231542552776,
+          "influence_mm_s": 0.07380069688840707,
+          "final_dr_km": 8.186104334641787,
+          "final_dv_km_s": 0.008809475577152734
+        }
+      }
+    },
+    {
+      "name": "6. Earth IR radiation",
+      "sort_influence_m": 0.23604799620643144,
+      "figure": "6_earth_ir_radiation.png",
+      "satellites": {
+        "CASSIOPE / Swarm-E": {
+          "influence_m": 0.25175097271503744,
+          "influence_mm_s": 0.24840647470124447,
+          "final_dr_km": 0.5497341180860605,
+          "final_dv_km_s": 0.00044605246141186505
+        },
+        "Sentinel-1B": {
+          "influence_m": 0.3157011282657577,
+          "influence_mm_s": 0.3378505191430788,
+          "final_dr_km": 0.5130098920148745,
+          "final_dv_km_s": 0.0007730398357072378
+        },
+        "Sentinel-1A": {
+          "influence_m": 0.3162806333359026,
+          "influence_mm_s": 0.3390323703236106,
+          "final_dr_km": 3.2356090297987232,
+          "final_dv_km_s": 0.0036041430229267453
+        },
+        "Swarm B": {
+          "influence_m": 0.17650338471267266,
+          "influence_mm_s": 0.1938962940500933,
+          "final_dr_km": 2.204766984413572,
+          "final_dv_km_s": 0.0021462681726903098
+        },
+        "Swarm C": {
+          "influence_m": 0.178025981533289,
+          "influence_mm_s": 0.1961062779379693,
+          "final_dr_km": 8.268383927910477,
+          "final_dv_km_s": 0.00888715896788558
+        },
+        "Swarm A": {
+          "influence_m": 0.17802587667592937,
+          "influence_mm_s": 0.19610148946839717,
+          "final_dr_km": 8.186317942844836,
+          "final_dv_km_s": 0.0088096802854992
+        }
+      }
+    }
+  ]
+}
