@@ -1,4 +1,4 @@
-﻿# MPTI residual insights
+﻿# Colleagues' reference residual insights
 
 Горизонт прогноза: 12 часов. Ошибки считаются по последней точке прогноза относительно precise-orbit reference. Baseline стоит первым; остальные строки отсортированы по среднему изменению финального положения модели относительно baseline по всем спутникам.
 
