@@ -1,4 +1,4 @@
-"""Static Earth gravity spherical harmonics in a body-fixed frame."""
+"""Статические сферические гармоники гравитации Земли в связанной с телом системе."""
 
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ DEFAULT_EGM2008_GFC_URL = (
 
 @dataclass(frozen=True, slots=True)
 class GravityHarmonicCoefficients:
-    """Fully-normalized static gravity coefficients.
+    """Полностью нормированные статические коэффициенты гравитационного поля.
 
-    `c[n, m]` and `s[n, m]` are fully-normalized coefficients compatible with
-    the ICGEM `.gfc` convention. Units are SI for `mu_m3_s2` and `radius_m`.
+    `c[n, m]` и `s[n, m]` полностью нормированы и совместимы с соглашением
+    ICGEM `.gfc`. Для `mu_m3_s2` и `radius_m` используются единицы SI.
     """
 
     mu_m3_s2: float
@@ -45,7 +45,7 @@ def download_icgem_gfc(
     url: str,
     cache_path: str | Path,
 ) -> Path:
-    """Download an ICGEM `.gfc` file or `.zip` archive to a local cache path."""
+    """Скачать файл ICGEM `.gfc` или архив `.zip` в локальный кеш."""
     target = Path(cache_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     download_path = target.with_name(f"{target.name}.download")
@@ -73,7 +73,7 @@ def download_egm2008_gfc(
     *,
     url: str = DEFAULT_EGM2008_GFC_URL,
 ) -> Path:
-    """Download EGM2008 gravity coefficients to a local cache path."""
+    """Скачать коэффициенты гравитационного поля EGM2008 в локальный кеш."""
     return download_icgem_gfc(url, cache_path)
 
 
@@ -84,7 +84,7 @@ def read_icgem_gfc(
     max_degree: int | None = None,
     max_order: int | None = None,
 ) -> GravityHarmonicCoefficients:
-    """Read fully-normalized ICGEM `.gfc` coefficients from a local file."""
+    """Прочитать полностью нормированные коэффициенты ICGEM `.gfc` из локального файла."""
     source = Path(path)
     mu = math.nan
     radius = math.nan
@@ -126,7 +126,7 @@ def read_icgem_gfc(
 
 
 def _fully_normalized_legendre(max_degree: int, sin_latitude: float) -> np.ndarray:
-    """Compute fully-normalized associated Legendre functions."""
+    """Вычислить полностью нормированные присоединённые функции Лежандра."""
     p = np.zeros((max_degree + 1, max_degree + 1), dtype=float)
     x = float(np.clip(sin_latitude, -1.0, 1.0))
     for n in range(max_degree + 1):
@@ -145,7 +145,7 @@ def harmonic_perturbing_potential(
     max_degree: int | None = None,
     max_order: int | None = None,
 ) -> float:
-    """Static non-central harmonic gravity potential perturbation [m^2/s^2]."""
+    """Возмущение статического нецентрального гармонического потенциала [м^2/с^2]."""
     r = np.asarray(r_itrs, dtype=float)
     radius = np.linalg.norm(r)
     if radius <= 0.0:
@@ -182,7 +182,7 @@ def harmonic_perturbing_acceleration(
     max_order: int | None = None,
     finite_difference_step_m: float = 10.0,
 ) -> np.ndarray:
-    """Numerical gradient of static harmonic perturbing potential [m/s^2]."""
+    """Численный градиент статического гармонического возмущающего потенциала [м/с^2]."""
     r = np.asarray(r_itrs, dtype=float)
     step = float(finite_difference_step_m)
     if step <= 0.0:

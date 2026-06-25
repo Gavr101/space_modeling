@@ -22,12 +22,12 @@ iers.conf.iers_degraded_accuracy = "warn"
 
 @dataclass(slots=True)
 class Sp3Orbit:
-    """Parsed SP3 satellite positions and optional velocities.
+    """Разобранные положения спутников SP3 и опциональные скорости.
 
-    SP3 precise orbit files usually store GNSS satellite positions in an
-    Earth-fixed terrestrial frame. Position records are converted from
-    kilometres to metres while reading. Velocity records, when present, are
-    converted from decimetres per second to metres per second.
+    Файлы точных орбит SP3 обычно хранят положения спутников GNSS в земной
+    системе координат. При чтении записи положений переводятся из километров
+    в метры. Записи скоростей, если они есть, переводятся из дециметров
+    в секунду в метры в секунду.
     """
 
     epochs: Time
@@ -37,7 +37,7 @@ class Sp3Orbit:
 
 
 def download_sp3(url: str, output_path: str | Path) -> Path:
-    """Download an SP3 file if it is not already present locally."""
+    """Скачать файл SP3, если он ещё не доступен локально."""
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.stat().st_size > 0:
@@ -49,11 +49,11 @@ def download_sp3(url: str, output_path: str | Path) -> Path:
 
 
 def read_sp3(path: str | Path) -> Sp3Orbit:
-    """Read positions and optional velocities from an SP3 precise orbit file.
+    """Прочитать положения и опциональные скорости из файла точных орбит SP3.
 
-    Supported inputs are plain text `.sp3` files, gzip-compressed `.sp3.gz`
-    files, and `.zip` archives that contain one `.sp3` member. Position and
-    velocity records with invalid SP3 sentinel values are skipped.
+    Поддерживаются обычные текстовые файлы `.sp3`, сжатые gzip файлы `.sp3.gz`
+    и архивы `.zip`, содержащие один файл `.sp3`. Записи положений и скоростей
+    с недопустимыми sentinel-значениями SP3 пропускаются.
     """
     path = Path(path)
 
@@ -136,11 +136,11 @@ def sp3_state_samples(
     duration_hours: float = 12.0,
     step_seconds: float = 900.0,
 ) -> tuple[Time, np.ndarray]:
-    """Return uniformly sampled GCRS states `[r, v]` from SP3 positions.
+    """Вернуть равномерно выбранные состояния GCRS `[r, v]` по положениям SP3.
 
-    SP3 velocity records are used when they are available for the requested
-    satellite. Otherwise, the velocity is estimated by finite differences after
-    converting positions to GCRS.
+    Записи скоростей SP3 используются, если они доступны для запрошенного
+    спутника. Иначе скорость оценивается конечными разностями после
+    преобразования положений в GCRS.
     """
     orbit = read_sp3(path)
     if satellite_id not in orbit.positions_m:
@@ -175,16 +175,17 @@ def sp3_state_samples(
 
 
 def sp3_velocity_records(orbit: Sp3Orbit) -> dict[str, np.ndarray]:
-    """Return SP3 velocity records [m/s], or an empty mapping for old objects.
+    """Вернуть записи скоростей SP3 [м/с] или пустое отображение для старых объектов.
 
-    This keeps notebooks robust after editing `dynamics.sp3` in a live Jupyter
-    kernel where a previously imported `Sp3Orbit` class may still be present.
+    Это сохраняет устойчивость ноутбуков после редактирования `dynamics.sp3`
+    в живом ядре Jupyter, где ранее импортированный класс `Sp3Orbit` может
+    всё ещё присутствовать.
     """
     return getattr(orbit, "velocities_m_s", {})
 
 
 def itrs_positions_to_gcrs(epochs: Time, positions_itrs_m: np.ndarray) -> np.ndarray:
-    """Convert Earth-fixed SP3 positions [m] to GCRS positions [m]."""
+    """Преобразовать земные положения SP3 [м] в положения GCRS [м]."""
     representation = CartesianRepresentation(
         x=positions_itrs_m[:, 0] * u.m,
         y=positions_itrs_m[:, 1] * u.m,
@@ -200,7 +201,7 @@ def itrs_states_to_gcrs(
     positions_itrs_m: np.ndarray,
     velocities_itrs_m_s: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Convert Earth-fixed SP3 position/velocity states to GCRS states."""
+    """Преобразовать земные состояния SP3 положение/скорость в состояния GCRS."""
     representation = CartesianRepresentation(
         x=positions_itrs_m[:, 0] * u.m,
         y=positions_itrs_m[:, 1] * u.m,
@@ -220,7 +221,7 @@ def itrs_states_to_gcrs(
 
 
 def finite_difference_velocity(elapsed_seconds: np.ndarray, positions_m: np.ndarray) -> np.ndarray:
-    """Estimate velocity [m/s] from sampled positions with finite differences."""
+    """Оценить скорость [м/с] по выбранным положениям с помощью конечных разностей."""
     if len(elapsed_seconds) < 2:
         raise ValueError("At least two SP3 samples are required to estimate velocity.")
     edge_order = 2 if len(elapsed_seconds) >= 3 else 1
@@ -228,11 +229,11 @@ def finite_difference_velocity(elapsed_seconds: np.ndarray, positions_m: np.ndar
 
 
 def _sp3_epochs_to_time(epochs_raw: list[datetime], time_system: str) -> Time:
-    """Convert SP3 calendar labels to Astropy Time.
+    """Преобразовать календарные метки SP3 во время Astropy.
 
-    IGS SP3 orbit products are commonly tagged in GPS time. GPS is offset from
-    TAI by a constant 19 seconds, so the conversion below avoids treating GPS
-    labels as UTC labels.
+    Орбитальные продукты IGS SP3 часто размечены во времени GPS. GPS смещено
+    относительно TAI на постоянные 19 секунд, поэтому преобразование ниже
+    не трактует метки GPS как метки UTC.
     """
     if time_system.upper() == "GPS":
         return (Time(epochs_raw, scale="tai") + 19.0 * u.s).utc
@@ -241,7 +242,7 @@ def _sp3_epochs_to_time(epochs_raw: list[datetime], time_system: str) -> Time:
 
 @contextmanager
 def _open_sp3_text(path: Path):
-    """Open a plain, gzip-compressed, or zip-contained SP3 text stream."""
+    """Открыть обычный, gzip-сжатый или находящийся в zip текстовый поток SP3."""
     if path.suffix.lower() == ".gz":
         with gzip.open(path, "rt", encoding="ascii", errors="replace") as file:
             yield file
@@ -261,7 +262,7 @@ def _open_sp3_text(path: Path):
 
 
 def _parse_sp3_vector_record(line: str) -> tuple[str | None, np.ndarray | None]:
-    """Parse the first three numeric fields from a P or V SP3 record."""
+    """Разобрать первые три числовых поля из записи P или V формата SP3."""
     sat_id = line[1:4].strip()
     if not sat_id:
         return None, None

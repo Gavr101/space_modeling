@@ -1,4 +1,4 @@
-"""Dynamics subsystem for high-fidelity orbit propagation."""
+"""Подсистема динамики для высокоточного распространения орбит."""
 
 from .environment import EnvironmentConfig
 from .eof import EofOrbit, eof_state_samples, read_sentinel_eof

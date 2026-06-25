@@ -1,4 +1,4 @@
-"""CelesTrak space-weather CSV parsing and cache helpers."""
+"""Разбор CSV с космической погодой CelesTrak и вспомогательные функции кеша."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ DEFAULT_QUIET_AP = 4.0
 
 @dataclass(frozen=True, slots=True)
 class SpaceWeatherRecord:
-    """One daily CelesTrak space-weather CSV row."""
+    """Одна суточная строка CSV CelesTrak с параметрами космической погоды."""
 
     date: date
     ap_3h: tuple[float, float, float, float, float, float, float, float]
@@ -34,7 +34,7 @@ class SpaceWeatherRecord:
 
 @dataclass(frozen=True, slots=True)
 class SpaceWeatherSample:
-    """NRLMSISE-00 scalar inputs sampled for a UTC epoch."""
+    """Скалярные входные параметры NRLMSISE-00, выбранные для UTC-эпохи."""
 
     f107a: float
     f107: float
@@ -51,7 +51,7 @@ def _parse_float(value: str) -> float:
 
 
 def parse_celestrak_space_weather_csv(text: str) -> dict[date, SpaceWeatherRecord]:
-    """Parse CelesTrak `SW-All.csv`/`SW-Last5Years.csv` content."""
+    """Разобрать содержимое CelesTrak `SW-All.csv`/`SW-Last5Years.csv`."""
     lines = [line for line in text.splitlines() if line.strip() and not line.startswith("#")]
     reader = csv.DictReader(lines)
     records: dict[date, SpaceWeatherRecord] = {}
@@ -76,7 +76,7 @@ def parse_celestrak_space_weather_csv(text: str) -> dict[date, SpaceWeatherRecor
 
 @lru_cache(maxsize=8)
 def load_celestrak_space_weather_csv(path: str | Path) -> dict[date, SpaceWeatherRecord]:
-    """Read and cache a local CelesTrak space-weather CSV file."""
+    """Прочитать и закешировать локальный CSV CelesTrak с космической погодой."""
     csv_path = Path(path)
     return parse_celestrak_space_weather_csv(csv_path.read_text(encoding="utf-8"))
 
@@ -86,7 +86,7 @@ def download_celestrak_space_weather_csv(
     *,
     url: str = CELESTRAK_SPACE_WEATHER_ALL_CSV_URL,
 ) -> Path:
-    """Download CelesTrak space-weather CSV to a reproducible local cache path."""
+    """Скачать CSV CelesTrak с космической погодой в воспроизводимый локальный кеш."""
     path = Path(cache_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     urlretrieve(url, path)
@@ -94,7 +94,7 @@ def download_celestrak_space_weather_csv(
 
 
 def quiet_space_weather_sample() -> SpaceWeatherSample:
-    """Return the explicit quiet-constant fallback used without index data."""
+    """Вернуть явные константы спокойной атмосферы при отсутствии данных индексов."""
     return SpaceWeatherSample(
         f107a=DEFAULT_QUIET_F107A,
         f107=DEFAULT_QUIET_F107,
@@ -108,7 +108,7 @@ def sample_space_weather(
     epoch: datetime,
     records: dict[date, SpaceWeatherRecord],
 ) -> SpaceWeatherSample:
-    """Sample F10.7/F10.7a/Ap inputs for a UTC epoch."""
+    """Выбрать входные F10.7/F10.7a/Ap для UTC-эпохи."""
     if epoch.tzinfo is None:
         epoch = epoch.replace(tzinfo=timezone.utc)
     utc = epoch.astimezone(timezone.utc)

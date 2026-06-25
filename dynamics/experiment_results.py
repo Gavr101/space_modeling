@@ -1,4 +1,4 @@
-"""Utilities for reproducible residual metrics and experiment result exports."""
+"""Утилиты для воспроизводимых метрик невязок и экспорта результатов экспериментов."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .propagator import R_EARTH
 
 
 def _jsonable(value: Any) -> Any:
-    """Convert dataclasses, numpy values, and paths to JSON-compatible objects."""
+    """Преобразовать dataclass, значения numpy и пути в JSON-совместимые объекты."""
     if is_dataclass(value):
         return _jsonable(asdict(value))
     if isinstance(value, np.ndarray):
@@ -37,16 +37,16 @@ def residual_series(
     *,
     earth_radius_m: float = R_EARTH,
 ) -> dict[str, np.ndarray]:
-    """Compute aligned residual time series.
+    """Вычислить согласованные временные ряды невязок.
 
-    Parameters
+    Параметры
     ----------
     reference_states:
-        Array of reference states `[x, y, z, vx, vy, vz]` in `[m, m/s]`.
+        Массив эталонных состояний `[x, y, z, vx, vy, vz]` в `[м, м/с]`.
     model_states:
-        Array of model states with the same shape and units as `reference_states`.
+        Массив модельных состояний с той же формой и единицами, что и `reference_states`.
     earth_radius_m:
-        Spherical Earth radius used only for altitude residuals [m].
+        Сферический радиус Земли, используемый только для невязок высоты [м].
     """
     reference = np.asarray(reference_states, dtype=float)
     model = np.asarray(model_states, dtype=float)
@@ -72,7 +72,7 @@ def summarize_residuals(
     *,
     earth_radius_m: float = R_EARTH,
 ) -> dict[str, float]:
-    """Return median/max residual metrics for aligned state arrays."""
+    """Вернуть медианные/максимальные метрики невязок для согласованных массивов состояний."""
     series = residual_series(reference_states, model_states, earth_radius_m=earth_radius_m)
     return {
         "median_altitude_km": float(
@@ -97,7 +97,7 @@ def make_experiment_record(
     model_states: np.ndarray,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build one serializable experiment-summary record."""
+    """Собрать одну сериализуемую запись сводки эксперимента."""
     record = {
         "name": name,
         "source": _jsonable(source),
@@ -115,12 +115,12 @@ def write_experiment_summary(
     *,
     stem: str = "orbit_prediction_summary",
 ) -> tuple[Path, Path]:
-    """Write experiment records to JSON and compact CSV files.
+    """Записать записи экспериментов в JSON и компактный CSV.
 
-    Returns
+    Возвращает
     -------
     tuple[Path, Path]
-        Paths to the JSON and CSV files.
+        Пути к файлам JSON и CSV.
     """
     path = Path(output_dir)
     path.mkdir(parents=True, exist_ok=True)

@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class FrameConfig:
-    """Configuration of reference frames.
+    """Конфигурация систем отсчёта.
 
-    We intentionally rely on external astrodynamics libraries (TudatPy/Orekit)
-    for frame transformations instead of implementing custom transforms.
+    Для преобразований систем координат намеренно используем внешние
+    астродинамические библиотеки (TudatPy/Orekit), а не собственные реализации.
     """
 
     inertial_frame: str = "J2000"

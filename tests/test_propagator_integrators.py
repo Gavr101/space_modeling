@@ -21,6 +21,7 @@ from dynamics.propagator import (
     _nrlmsise_density_kg_m3,
     _relativistic_acceleration,
     _srp_illumination_factor,
+    _total_acceleration,
     propagate_orbit,
 )
 
@@ -65,6 +66,17 @@ def test_propagators_return_saved_state_grid_with_final_epoch() -> None:
         assert states.shape == (4, 6)
 
 
+def test_custom_output_times_are_supported_and_sorted() -> None:
+    config = _central_gravity_config("dop853", duration_seconds=125.0)
+    config.output_times_seconds = np.array([125.0, 0.0, 17.5, 60.0])
+    config.__post_init__()
+
+    times, states = propagate_orbit(config)
+
+    np.testing.assert_allclose(times, [0.0, 17.5, 60.0, 125.0])
+    assert states.shape == (4, 6)
+
+
 def test_dop853_central_gravity_keeps_circular_orbit_radius() -> None:
     config = _central_gravity_config("dop853")
     _, states = propagate_orbit(config)
@@ -91,6 +103,34 @@ def test_j2_body_fixed_frame_returns_finite_si_acceleration() -> None:
     assert body_fixed.shape == (3,)
     assert np.all(np.isfinite(body_fixed))
     assert 7.0 < np.linalg.norm(body_fixed) < 9.0
+
+
+def test_force_scale_factors_scale_j2_perturbation_only() -> None:
+    state = np.array([6_900_000.0, 1_200_000.0, 1_700_000.0, 0.0, 7_500.0, 0.0])
+    force_models = ForceModelConfig(
+        earth_gravity_model="j2",
+        earth_j2=True,
+        atmospheric_drag=False,
+        third_body_sun=False,
+        third_body_moon=False,
+        solar_radiation_pressure=False,
+    )
+    config = PropagationConfig(
+        initial_state=state,
+        epoch_seconds=1_704_067_200.0,
+        duration_seconds=0.0,
+        integrator="dop853",
+        environment=EnvironmentConfig(force_models=force_models),
+    )
+
+    default_acceleration = _total_acceleration(state, config, 123.0)
+    central_acceleration = _earth_gravity_acceleration(state[:3], with_j2=False)
+
+    config.environment.force_scale_factors = {"j2": 0.0}
+    scaled_acceleration = _total_acceleration(state, config, 123.0)
+
+    np.testing.assert_allclose(scaled_acceleration, central_acceleration)
+    assert np.linalg.norm(default_acceleration - central_acceleration) > 0.0
 
 
 def test_srp_shadow_models_cover_light_and_umbra_cases() -> None:

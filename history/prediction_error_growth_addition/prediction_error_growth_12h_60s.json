@@ -1,0 +1,543 @@
+{
+  "created_utc": "2026-06-15T10:06:23.982409+00:00",
+  "records": [
+    {
+      "name": "CASSIOPE / Swarm-E",
+      "source": {
+        "format": "sp3",
+        "satellite_id": "L63",
+        "url": "https://epop-data.phys.ucalgary.ca/2017/02/01/CAS_Orbit_GEO_20170201T000000_20170201T235959_1.1.0.sp3.zip",
+        "path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\CAS_Orbit_GEO_20170201T000000_20170201T235959_1.1.0.sp3.zip",
+        "requires_velocity": true,
+        "velocity_source": "sp3_velocity_records",
+        "spacecraft": {
+          "mass": 500.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 2.2
+        }
+      },
+      "propagation": {
+        "initial_state": [
+          1219656.6446141521,
+          -1833043.7368685207,
+          7366934.795498862,
+          6249.855108205696,
+          -2548.1655310220085,
+          -1638.5725467130544
+        ],
+        "epoch_seconds": 1485907200.0,
+        "duration_seconds": 43200.0,
+        "step_seconds": 60.0,
+        "integrator": "dop853",
+        "rtol": 1e-10,
+        "atol": [
+          0.001,
+          0.001,
+          0.001,
+          1e-06,
+          1e-06,
+          1e-06
+        ],
+        "spacecraft": {
+          "mass": 500.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 2.2
+        },
+        "environment": {
+          "central_body": "Earth",
+          "frame": {
+            "inertial_frame": "J2000",
+            "body_fixed_frame": "ITRF"
+          },
+          "force_models": {
+            "spherical_earth_gravity": true,
+            "earth_gravity_model": "j2",
+            "earth_j2": true,
+            "gravity_max_degree": 8,
+            "gravity_max_order": 8,
+            "j2_frame": "itrs_body_fixed",
+            "atmospheric_drag": true,
+            "density_model": "nrlmsise00",
+            "nrlmsise00_atmosphere": true,
+            "third_body_sun": true,
+            "third_body_moon": true,
+            "solar_radiation_pressure": true,
+            "srp_shadow_model": "conical",
+            "earth_radiation_model": "none",
+            "relativity_model": "none",
+            "tide_model": "none"
+          },
+          "space_weather_file": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\cache\\SW-All.csv",
+          "gravity_coefficients_file": null,
+          "force_scale_factors": {}
+        },
+        "output_times_seconds": null
+      },
+      "metrics": {
+        "median_altitude_km": 869.2009667154737,
+        "median_delta_r_km": 0.6466962764870053,
+        "max_delta_r_km": 1.852886125673326,
+        "median_delta_h_km": 0.1644485337100923,
+        "max_delta_h_km": 0.47874475917592646,
+        "median_delta_v_km_s": 0.00059236979164441,
+        "max_delta_v_km_s": 0.001711828519167449
+      },
+      "extra": {
+        "reference_path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\CAS_Orbit_GEO_20170201T000000_20170201T235959_1.1.0.sp3.zip",
+        "has_velocity": true,
+        "horizon_h": 12,
+        "step_seconds": 60.0
+      }
+    },
+    {
+      "name": "Sentinel-1B",
+      "source": {
+        "format": "sentinel_eof",
+        "url": "https://s1-orbits.s3.us-west-2.amazonaws.com/AUX_POEORB/S1B_OPER_AUX_POEORB_OPOD_20210203T112353_V20210113T225942_20210115T005942.EOF",
+        "path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\eof\\S1B_OPER_AUX_POEORB_OPOD_20210203T112353_V20210113T225942_20210115T005942.EOF",
+        "requires_velocity": true,
+        "velocity_source": "sentinel_eof_osv",
+        "spacecraft": {
+          "mass": 2185.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 10.3
+        }
+      },
+      "propagation": {
+        "initial_state": [
+          -6412779.042052977,
+          -2531763.0052777235,
+          -1603892.1508344032,
+          1153.385905686766,
+          1639.8793298588134,
+          -7231.591509491205
+        ],
+        "epoch_seconds": 1610578782.0,
+        "duration_seconds": 43200.0,
+        "step_seconds": 60.0,
+        "integrator": "dop853",
+        "rtol": 1e-10,
+        "atol": [
+          0.001,
+          0.001,
+          0.001,
+          1e-06,
+          1e-06,
+          1e-06
+        ],
+        "spacecraft": {
+          "mass": 2185.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 10.3
+        },
+        "environment": {
+          "central_body": "Earth",
+          "frame": {
+            "inertial_frame": "J2000",
+            "body_fixed_frame": "ITRF"
+          },
+          "force_models": {
+            "spherical_earth_gravity": true,
+            "earth_gravity_model": "j2",
+            "earth_j2": true,
+            "gravity_max_degree": 8,
+            "gravity_max_order": 8,
+            "j2_frame": "itrs_body_fixed",
+            "atmospheric_drag": true,
+            "density_model": "nrlmsise00",
+            "nrlmsise00_atmosphere": true,
+            "third_body_sun": true,
+            "third_body_moon": true,
+            "solar_radiation_pressure": true,
+            "srp_shadow_model": "conical",
+            "earth_radiation_model": "none",
+            "relativity_model": "none",
+            "tide_model": "none"
+          },
+          "space_weather_file": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\cache\\SW-All.csv",
+          "gravity_coefficients_file": null,
+          "force_scale_factors": {}
+        },
+        "output_times_seconds": null
+      },
+      "metrics": {
+        "median_altitude_km": 699.330577578145,
+        "median_delta_r_km": 1.0361061535534397,
+        "max_delta_r_km": 1.7604931442540028,
+        "median_delta_h_km": 0.07623425334598868,
+        "max_delta_h_km": 0.24953006231691688,
+        "median_delta_v_km_s": 0.0010313763355168136,
+        "max_delta_v_km_s": 0.0016661361932666752
+      },
+      "extra": {
+        "reference_path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\eof\\S1B_OPER_AUX_POEORB_OPOD_20210203T112353_V20210113T225942_20210115T005942.EOF",
+        "has_velocity": true,
+        "horizon_h": 12,
+        "step_seconds": 60.0
+      }
+    },
+    {
+      "name": "Sentinel-1A",
+      "source": {
+        "format": "sentinel_eof",
+        "url": "https://s1-orbits.s3.us-west-2.amazonaws.com/AUX_POEORB/S1A_OPER_AUX_POEORB_OPOD_20230821T080724_V20230731T225942_20230802T005942.EOF",
+        "path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\eof\\S1A_OPER_AUX_POEORB_OPOD_20230821T080724_V20230731T225942_20230802T005942.EOF",
+        "requires_velocity": true,
+        "velocity_source": "sentinel_eof_osv",
+        "spacecraft": {
+          "mass": 2185.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 10.3
+        }
+      },
+      "propagation": {
+        "initial_state": [
+          -4909277.683611274,
+          -4479427.956670535,
+          -2440081.929519848,
+          -2642.942684701644,
+          -887.9565835772082,
+          6965.361867161933
+        ],
+        "epoch_seconds": 1690844382.0,
+        "duration_seconds": 43200.0,
+        "step_seconds": 60.0,
+        "integrator": "dop853",
+        "rtol": 1e-10,
+        "atol": [
+          0.001,
+          0.001,
+          0.001,
+          1e-06,
+          1e-06,
+          1e-06
+        ],
+        "spacecraft": {
+          "mass": 2185.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 10.3
+        },
+        "environment": {
+          "central_body": "Earth",
+          "frame": {
+            "inertial_frame": "J2000",
+            "body_fixed_frame": "ITRF"
+          },
+          "force_models": {
+            "spherical_earth_gravity": true,
+            "earth_gravity_model": "j2",
+            "earth_j2": true,
+            "gravity_max_degree": 8,
+            "gravity_max_order": 8,
+            "j2_frame": "itrs_body_fixed",
+            "atmospheric_drag": true,
+            "density_model": "nrlmsise00",
+            "nrlmsise00_atmosphere": true,
+            "third_body_sun": true,
+            "third_body_moon": true,
+            "solar_radiation_pressure": true,
+            "srp_shadow_model": "conical",
+            "earth_radiation_model": "none",
+            "relativity_model": "none",
+            "tide_model": "none"
+          },
+          "space_weather_file": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\cache\\SW-All.csv",
+          "gravity_coefficients_file": null,
+          "force_scale_factors": {}
+        },
+        "output_times_seconds": null
+      },
+      "metrics": {
+        "median_altitude_km": 698.4023300280916,
+        "median_delta_r_km": 0.8222625267294662,
+        "max_delta_r_km": 3.918067689847315,
+        "median_delta_h_km": 0.10573097653314471,
+        "max_delta_h_km": 0.27220139271579685,
+        "median_delta_v_km_s": 0.0008648906516574505,
+        "max_delta_v_km_s": 0.00397535380547123
+      },
+      "extra": {
+        "reference_path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\eof\\S1A_OPER_AUX_POEORB_OPOD_20230821T080724_V20230731T225942_20230802T005942.EOF",
+        "has_velocity": true,
+        "horizon_h": 12,
+        "step_seconds": 60.0
+      }
+    },
+    {
+      "name": "Swarm B",
+      "source": {
+        "format": "sp3",
+        "satellite_id": "L48",
+        "url": "https://swarm-diss.eo.esa.int/?do=download&file=swarm%2FLevel2daily%2FLatest_baselines%2FPOD%2FRD%2FSat_B%2FSW_OPER_SP3BCOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\SW_OPER_SP3BCOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "requires_velocity": true,
+        "velocity_source": "sp3_velocity_records",
+        "spacecraft": {
+          "mass": 438.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 1.1
+        }
+      },
+      "propagation": {
+        "initial_state": [
+          2208274.415485897,
+          6422906.889598692,
+          -1173642.1185522284,
+          -720.2107894858345,
+          -1111.367600322701,
+          -7489.004742780003
+        ],
+        "epoch_seconds": 1704585582.0,
+        "duration_seconds": 43200.0,
+        "step_seconds": 60.0,
+        "integrator": "dop853",
+        "rtol": 1e-10,
+        "atol": [
+          0.001,
+          0.001,
+          0.001,
+          1e-06,
+          1e-06,
+          1e-06
+        ],
+        "spacecraft": {
+          "mass": 438.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 1.1
+        },
+        "environment": {
+          "central_body": "Earth",
+          "frame": {
+            "inertial_frame": "J2000",
+            "body_fixed_frame": "ITRF"
+          },
+          "force_models": {
+            "spherical_earth_gravity": true,
+            "earth_gravity_model": "j2",
+            "earth_j2": true,
+            "gravity_max_degree": 8,
+            "gravity_max_order": 8,
+            "j2_frame": "itrs_body_fixed",
+            "atmospheric_drag": true,
+            "density_model": "nrlmsise00",
+            "nrlmsise00_atmosphere": true,
+            "third_body_sun": true,
+            "third_body_moon": true,
+            "solar_radiation_pressure": true,
+            "srp_shadow_model": "conical",
+            "earth_radiation_model": "none",
+            "relativity_model": "none",
+            "tide_model": "none"
+          },
+          "space_weather_file": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\cache\\SW-All.csv",
+          "gravity_coefficients_file": null,
+          "force_scale_factors": {}
+        },
+        "output_times_seconds": null
+      },
+      "metrics": {
+        "median_altitude_km": 513.4012874911446,
+        "median_delta_r_km": 1.8449535613417047,
+        "max_delta_r_km": 2.6672097033382522,
+        "median_delta_h_km": 0.08690305490233004,
+        "max_delta_h_km": 0.2570236309003085,
+        "median_delta_v_km_s": 0.002054441696361383,
+        "max_delta_v_km_s": 0.0028059094252089745
+      },
+      "extra": {
+        "reference_path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\SW_OPER_SP3BCOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "has_velocity": true,
+        "horizon_h": 12,
+        "step_seconds": 60.0
+      }
+    },
+    {
+      "name": "Swarm C",
+      "source": {
+        "format": "sp3",
+        "satellite_id": "L49",
+        "url": "https://swarm-diss.eo.esa.int/?do=download&file=swarm%2FLevel2daily%2FLatest_baselines%2FPOD%2FRD%2FSat_C%2FSW_OPER_SP3CCOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\SW_OPER_SP3CCOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "requires_velocity": true,
+        "velocity_source": "sp3_velocity_records",
+        "spacecraft": {
+          "mass": 438.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 1.1
+        }
+      },
+      "propagation": {
+        "initial_state": [
+          508262.4372656828,
+          511061.144447974,
+          6807363.623479269,
+          -7166.330946599542,
+          -2514.711073868384,
+          722.6327609801665
+        ],
+        "epoch_seconds": 1704585582.0,
+        "duration_seconds": 43200.0,
+        "step_seconds": 60.0,
+        "integrator": "dop853",
+        "rtol": 1e-10,
+        "atol": [
+          0.001,
+          0.001,
+          0.001,
+          1e-06,
+          1e-06,
+          1e-06
+        ],
+        "spacecraft": {
+          "mass": 438.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 1.1
+        },
+        "environment": {
+          "central_body": "Earth",
+          "frame": {
+            "inertial_frame": "J2000",
+            "body_fixed_frame": "ITRF"
+          },
+          "force_models": {
+            "spherical_earth_gravity": true,
+            "earth_gravity_model": "j2",
+            "earth_j2": true,
+            "gravity_max_degree": 8,
+            "gravity_max_order": 8,
+            "j2_frame": "itrs_body_fixed",
+            "atmospheric_drag": true,
+            "density_model": "nrlmsise00",
+            "nrlmsise00_atmosphere": true,
+            "third_body_sun": true,
+            "third_body_moon": true,
+            "solar_radiation_pressure": true,
+            "srp_shadow_model": "conical",
+            "earth_radiation_model": "none",
+            "relativity_model": "none",
+            "tide_model": "none"
+          },
+          "space_weather_file": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\cache\\SW-All.csv",
+          "gravity_coefficients_file": null,
+          "force_scale_factors": {}
+        },
+        "output_times_seconds": null
+      },
+      "metrics": {
+        "median_altitude_km": 480.20616573627575,
+        "median_delta_r_km": 2.869801276271275,
+        "max_delta_r_km": 7.955201666382047,
+        "median_delta_h_km": 0.11223896371293814,
+        "max_delta_h_km": 0.5104560770904645,
+        "median_delta_v_km_s": 0.0031625113262629145,
+        "max_delta_v_km_s": 0.008506251708303637
+      },
+      "extra": {
+        "reference_path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\SW_OPER_SP3CCOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "has_velocity": true,
+        "horizon_h": 12,
+        "step_seconds": 60.0
+      }
+    },
+    {
+      "name": "Swarm A",
+      "source": {
+        "format": "sp3",
+        "satellite_id": "L47",
+        "url": "https://swarm-diss.eo.esa.int/?do=download&file=swarm%2FLevel2daily%2FLatest_baselines%2FPOD%2FRD%2FSat_A%2FSW_OPER_SP3ACOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\SW_OPER_SP3ACOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "requires_velocity": true,
+        "velocity_source": "sp3_velocity_records",
+        "spacecraft": {
+          "mass": 438.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 1.1
+        }
+      },
+      "propagation": {
+        "initial_state": [
+          540356.6399227858,
+          539881.1840904473,
+          6802695.49386188,
+          -7098.540960329352,
+          -2685.3532613185234,
+          775.6047756588086
+        ],
+        "epoch_seconds": 1704585582.0,
+        "duration_seconds": 43200.0,
+        "step_seconds": 60.0,
+        "integrator": "dop853",
+        "rtol": 1e-10,
+        "atol": [
+          0.001,
+          0.001,
+          0.001,
+          1e-06,
+          1e-06,
+          1e-06
+        ],
+        "spacecraft": {
+          "mass": 438.0,
+          "cd": 2.2,
+          "cr": 1.3,
+          "reference_area": 1.1
+        },
+        "environment": {
+          "central_body": "Earth",
+          "frame": {
+            "inertial_frame": "J2000",
+            "body_fixed_frame": "ITRF"
+          },
+          "force_models": {
+            "spherical_earth_gravity": true,
+            "earth_gravity_model": "j2",
+            "earth_j2": true,
+            "gravity_max_degree": 8,
+            "gravity_max_order": 8,
+            "j2_frame": "itrs_body_fixed",
+            "atmospheric_drag": true,
+            "density_model": "nrlmsise00",
+            "nrlmsise00_atmosphere": true,
+            "third_body_sun": true,
+            "third_body_moon": true,
+            "solar_radiation_pressure": true,
+            "srp_shadow_model": "conical",
+            "earth_radiation_model": "none",
+            "relativity_model": "none",
+            "tide_model": "none"
+          },
+          "space_weather_file": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\cache\\SW-All.csv",
+          "gravity_coefficients_file": null,
+          "force_scale_factors": {}
+        },
+        "output_times_seconds": null
+      },
+      "metrics": {
+        "median_altitude_km": 480.19545069063736,
+        "median_delta_r_km": 2.786818604161132,
+        "max_delta_r_km": 7.88410845111421,
+        "median_delta_h_km": 0.10439105611573905,
+        "max_delta_h_km": 0.5023872809354216,
+        "median_delta_v_km_s": 0.0030415315668848213,
+        "max_delta_v_km_s": 0.008429944626365331
+      },
+      "extra": {
+        "reference_path": "C:\\Users\\Gavriil\\VS_projects\\space_modeling\\data\\sp3\\SW_OPER_SP3ACOM_2__20240106T235942_20240107T235942_0201.ZIP",
+        "has_velocity": true,
+        "horizon_h": 12,
+        "step_seconds": 60.0
+      }
+    }
+  ]
+}

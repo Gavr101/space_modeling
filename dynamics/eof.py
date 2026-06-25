@@ -14,11 +14,11 @@ from .sp3 import itrs_states_to_gcrs
 
 @dataclass(slots=True)
 class EofOrbit:
-    """Parsed Sentinel EOF orbit state vectors.
+    """Разобранные векторы состояния орбиты Sentinel EOF.
 
-    Sentinel POD EOF files store Orbit State Vectors (OSV) in an Earth-fixed
-    terrestrial frame. Positions are already stored in metres, velocities are
-    already stored in metres per second, and epochs are UTC labels.
+    Файлы Sentinel POD EOF хранят Orbit State Vectors (OSV) в земной системе
+    координат. Положения уже заданы в метрах, скорости - в метрах в секунду,
+    а эпохи подписаны в UTC.
     """
 
     epochs: Time
@@ -28,7 +28,7 @@ class EofOrbit:
 
 
 def read_sentinel_eof(path: str | Path) -> EofOrbit:
-    """Read nominal position and velocity OSVs from a Sentinel EOF file."""
+    """Прочитать номинальные OSV положения и скорости из файла Sentinel EOF."""
     root = ET.parse(Path(path)).getroot()
 
     epochs_raw: list[datetime] = []
@@ -75,10 +75,10 @@ def eof_state_samples(
     duration_hours: float = 12.0,
     step_seconds: float = 900.0,
 ) -> tuple[Time, np.ndarray]:
-    """Return uniformly sampled GCRS states `[r, v]` from Sentinel EOF OSVs.
+    """Вернуть равномерно выбранные состояния GCRS `[r, v]` из OSV Sentinel EOF.
 
-    Output states use SI units: positions in metres and velocities in metres
-    per second. Sentinel EOF input positions and velocities are already SI.
+    Выходные состояния используют единицы SI: положения в метрах и скорости
+    в метрах в секунду. Входные положения и скорости Sentinel EOF уже заданы в SI.
     """
     orbit = read_sentinel_eof(path)
     source_seconds = (orbit.epochs - orbit.epochs[0]).sec

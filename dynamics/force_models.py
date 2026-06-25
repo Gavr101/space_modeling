@@ -4,7 +4,7 @@ from typing import Literal
 
 @dataclass(slots=True)
 class ForceModelConfig:
-    """Supported force model toggles for stage-1 propagation."""
+    """Поддерживаемые переключатели силовых моделей для первого этапа распространения."""
 
     spherical_earth_gravity: bool = True
     earth_gravity_model: Literal["j2", "egm2008"] | str = "j2"
@@ -25,11 +25,11 @@ class ForceModelConfig:
 
 
 def make_recommended_force_config() -> ForceModelConfig:
-    """Return a reproducible high-fidelity starting point for addition studies.
+    """Вернуть воспроизводимую высокоточную стартовую конфигурацию для экспериментов добавления.
 
-    The recommendation keeps newly added small forces disabled until notebook
-    validation shows a robust improvement. They can be enabled one by one in
-    addition experiments.
+    Рекомендованный вариант оставляет новые малые силы выключенными, пока
+    проверка в ноутбуке не покажет устойчивое улучшение. Их можно включать
+    по одной в экспериментах добавления.
     """
     return ForceModelConfig(
         spherical_earth_gravity=True,
@@ -52,7 +52,7 @@ def make_recommended_force_config() -> ForceModelConfig:
 
 
 def make_addition_force_configs() -> dict[str, ForceModelConfig]:
-    """Return named force configurations for one-by-one addition studies."""
+    """Вернуть именованные конфигурации сил для поочерёдных экспериментов добавления."""
     baseline = make_recommended_force_config()
     return {
         "recommended_baseline": baseline,

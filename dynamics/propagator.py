@@ -64,6 +64,7 @@ class PropagationConfig:
         default_factory=lambda: SpacecraftProperties(5.0, 2.2, 1.3, 0.05)
     )
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
+    output_times_seconds: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         self.initial_state = np.asarray(self.initial_state, dtype=float)
@@ -80,6 +81,11 @@ class PropagationConfig:
 
         self.integrator = _normalize_integrator_name(self.integrator)
         self.atol = _normalize_atol(self.atol)
+        if self.output_times_seconds is not None:
+            self.output_times_seconds = _normalize_output_times(
+                self.output_times_seconds,
+                self.duration_seconds,
+            )
 
 
 # --- Физические константы (SI) ---
@@ -98,7 +104,7 @@ SOLID_EARTH_LOVE_K2 = 0.3
 
 
 def _normalize_integrator_name(integrator: str) -> Literal["rk4_fixed", "dop853"]:
-    """Return the internal integrator name while accepting historical aliases."""
+    """Вернуть внутреннее имя интегратора с поддержкой исторических псевдонимов."""
     name = str(integrator).strip().lower()
     aliases = {
         "rk4": "rk4_fixed",
@@ -116,7 +122,7 @@ def _normalize_integrator_name(integrator: str) -> Literal["rk4_fixed", "dop853"
 
 
 def _normalize_atol(atol: float | np.ndarray) -> np.ndarray:
-    """Validate absolute tolerances for state [x, y, z, vx, vy, vz]."""
+    """Проверить абсолютные допуски для состояния [x, y, z, vx, vy, vz]."""
     arr = np.asarray(atol, dtype=float)
     if arr.shape == ():
         if float(arr) <= 0.0:
@@ -130,7 +136,7 @@ def _normalize_atol(atol: float | np.ndarray) -> np.ndarray:
 
 
 def _normalize_j2_frame(j2_frame: str) -> Literal["gcrs_fixed_axis", "itrs_body_fixed"]:
-    """Validate J2 frame choice."""
+    """Проверить выбор системы координат для J2."""
     name = str(j2_frame).strip().lower()
     if name in {"gcrs", "gcrs_fixed_axis"}:
         return "gcrs_fixed_axis"
@@ -143,7 +149,7 @@ def _normalize_j2_frame(j2_frame: str) -> Literal["gcrs_fixed_axis", "itrs_body_
 
 
 def _normalize_earth_gravity_model(earth_gravity_model: str) -> Literal["j2", "egm2008"]:
-    """Validate Earth gravity model choice."""
+    """Проверить выбор модели гравитационного поля Земли."""
     name = str(earth_gravity_model).strip().lower()
     if name in {"j2", "central_j2"}:
         return "j2"
@@ -156,7 +162,7 @@ def _normalize_earth_gravity_model(earth_gravity_model: str) -> Literal["j2", "e
 
 
 def _normalize_srp_shadow_model(srp_shadow_model: str) -> Literal["none", "cylindrical", "conical"]:
-    """Validate SRP shadow model choice."""
+    """Проверить выбор модели тени для SRP."""
     name = str(srp_shadow_model).strip().lower()
     if name in {"none", "off", "false"}:
         return "none"
@@ -171,7 +177,7 @@ def _normalize_srp_shadow_model(srp_shadow_model: str) -> Literal["none", "cylin
 
 
 def _normalize_earth_radiation_model(earth_radiation_model: str) -> Literal["none", "isotropic_ir"]:
-    """Validate Earth radiation pressure model choice."""
+    """Проверить выбор модели давления излучения Земли."""
     name = str(earth_radiation_model).strip().lower()
     if name in {"none", "off", "false"}:
         return "none"
@@ -184,7 +190,7 @@ def _normalize_earth_radiation_model(earth_radiation_model: str) -> Literal["non
 
 
 def _normalize_relativity_model(relativity_model: str) -> Literal["none", "schwarzschild"]:
-    """Validate relativistic correction model choice."""
+    """Проверить выбор модели релятивистской поправки."""
     name = str(relativity_model).strip().lower()
     if name in {"none", "off", "false"}:
         return "none"
@@ -197,7 +203,7 @@ def _normalize_relativity_model(relativity_model: str) -> Literal["none", "schwa
 
 
 def _normalize_tide_model(tide_model: str) -> Literal["none", "solid_earth_degree2"]:
-    """Validate solid/ocean tide model choice."""
+    """Проверить выбор модели твёрдотельных/океанических приливов."""
     name = str(tide_model).strip().lower()
     if name in {"none", "off", "false"}:
         return "none"
@@ -210,7 +216,7 @@ def _normalize_tide_model(tide_model: str) -> Literal["none", "solid_earth_degre
 
 
 def _select_density_model(force_models: object) -> Literal["exponential", "nrlmsise00"]:
-    """Return the active density model while honoring the historical bool flag."""
+    """Вернуть активную модель плотности с учётом исторического булевого флага."""
     if not getattr(force_models, "nrlmsise00_atmosphere", True):
         return "exponential"
 
@@ -226,7 +232,7 @@ def _select_density_model(force_models: object) -> Literal["exponential", "nrlms
 
 
 def _output_times(duration_seconds: float, step_seconds: float) -> np.ndarray:
-    """Build the saved-state grid; DOP853 may use smaller internal steps."""
+    """Построить сетку сохраняемых состояний; DOP853 может использовать меньшие внутренние шаги."""
     if duration_seconds == 0.0:
         return np.array([0.0], dtype=float)
     times = np.arange(0.0, duration_seconds + 0.5 * step_seconds, step_seconds, dtype=float)
@@ -240,9 +246,29 @@ def _output_times(duration_seconds: float, step_seconds: float) -> np.ndarray:
     return times
 
 
+def _normalize_output_times(output_times_seconds: np.ndarray, duration_seconds: float) -> np.ndarray:
+    """Проверить и отсортировать пользовательскую сетку сохранения в секундах от эпохи."""
+    times = np.asarray(output_times_seconds, dtype=float).reshape(-1)
+    if times.size == 0:
+        raise ValueError("output_times_seconds must contain at least one time.")
+    if np.any(~np.isfinite(times)):
+        raise ValueError("output_times_seconds must be finite.")
+    if np.any(times < -1e-9) or np.any(times > duration_seconds + 1e-9):
+        raise ValueError("output_times_seconds must lie within [0, duration_seconds].")
+    times = np.clip(times, 0.0, duration_seconds)
+    times = np.unique(np.round(times, decimals=9))
+    if times[0] != 0.0:
+        times = np.insert(times, 0, 0.0)
+    if not np.isclose(times[-1], duration_seconds):
+        times = np.append(times, duration_seconds)
+    else:
+        times[-1] = duration_seconds
+    return times
+
+
 @lru_cache(maxsize=8192)
 def _gcrs_to_itrs_rotation(epoch_seconds: float, t_seconds: float) -> np.ndarray:
-    """Rotation matrix from GCRS coordinates to ITRS coordinates at UTC epoch."""
+    """Матрица поворота из координат GCRS в ITRS для заданной UTC-эпохи."""
     obstime = Time(epoch_seconds + t_seconds, format="unix", scale="utc")
     return np.asarray(cirs_to_itrs_mat(obstime) @ gcrs_to_cirs_mat(obstime), dtype=float)
 
@@ -268,13 +294,13 @@ def _datetime_from_epoch_seconds(epoch_seconds: float, t_seconds: float) -> date
 
 
 def _central_earth_gravity_acceleration(r: np.ndarray) -> np.ndarray:
-    """Central spherical-Earth gravity acceleration in SI units."""
+    """Ускорение центрального поля сферической Земли в единицах SI."""
     rn = np.linalg.norm(r)
     return -MU_EARTH * r / (rn**3)
 
 
 def _j2_acceleration_fixed_axis(r: np.ndarray) -> np.ndarray:
-    """J2 perturbing acceleration for a frame whose z-axis is Earth's symmetry axis."""
+    """Возмущающее ускорение J2 для системы, где ось z совпадает с осью симметрии Земли."""
     rn = np.linalg.norm(r)
     x, y, z = r
     r2 = rn * rn
@@ -293,6 +319,7 @@ def _earth_gravity_acceleration(
     j2_frame: str = "gcrs_fixed_axis",
     epoch_seconds: float | None = None,
     t_seconds: float = 0.0,
+    j2_scale: float = 1.0,
 ) -> np.ndarray:
     """Ускорение от поля Земли.
 
@@ -309,22 +336,23 @@ def _earth_gravity_acceleration(
 
     frame = _normalize_j2_frame(j2_frame)
     if frame == "gcrs_fixed_axis":
-        return a + _j2_acceleration_fixed_axis(r)
+        return a + j2_scale * _j2_acceleration_fixed_axis(r)
 
     if epoch_seconds is None:
         raise ValueError("epoch_seconds is required for j2_frame='itrs_body_fixed'.")
     rotation = _gcrs_to_itrs_rotation(float(epoch_seconds), float(t_seconds))
     r_itrs = rotation @ r
     a_j2_itrs = _j2_acceleration_fixed_axis(r_itrs)
-    return a + rotation.T @ a_j2_itrs
+    return a + j2_scale * (rotation.T @ a_j2_itrs)
 
 
 def _egm2008_acceleration(
     r_gcrs: np.ndarray,
     config: PropagationConfig,
     t_seconds: float,
+    harmonic_scale: float = 1.0,
 ) -> np.ndarray:
-    """Central gravity plus static EGM2008-like harmonics from a local ICGEM file."""
+    """Центральная гравитация плюс статические гармоники типа EGM2008 из локального файла ICGEM."""
     if config.environment.gravity_coefficients_file is None:
         raise ValueError(
             "earth_gravity_model='egm2008' requires "
@@ -345,7 +373,9 @@ def _egm2008_acceleration(
         max_degree=fm.gravity_max_degree,
         max_order=fm.gravity_max_order,
     )
-    return _central_earth_gravity_acceleration(r_gcrs) + rotation.T @ a_harmonic_itrs
+    return _central_earth_gravity_acceleration(r_gcrs) + harmonic_scale * (
+        rotation.T @ a_harmonic_itrs
+    )
 
 
 def _body_position_gcrs(body: str, epoch_seconds: float, t_seconds: float) -> np.ndarray:
@@ -376,12 +406,12 @@ def _degree2_solid_tide_body_acceleration(
     r_body: np.ndarray,
     mu_body: float,
 ) -> np.ndarray:
-    """Degree-2 solid-Earth tide acceleration from one external body [m/s^2].
+    """Ускорение прилива твёрдой Земли степени 2 от одного внешнего тела [м/с^2].
 
-    The expression is the gradient of
+    Выражение является градиентом
     k2 * mu_body * R_E^5 / |r_body|^3 / |r_sc|^3 * P2(cos(psi)).
-    Coordinates must be in the same geocentric frame; the propagator calls this
-    in ITRS and rotates the result back to GCRS.
+    Координаты должны быть заданы в одной геоцентрической системе; propagator
+    вызывает функцию в ITRS и поворачивает результат обратно в GCRS.
     """
     r_norm = np.linalg.norm(r_sc)
     body_norm = np.linalg.norm(r_body)
@@ -399,7 +429,7 @@ def _degree2_solid_tide_body_acceleration(
 
 
 def _circle_overlap_area(radius_a: float, radius_b: float, distance: float) -> float:
-    """Area of overlap for two circles in a local angular plane."""
+    """Площадь пересечения двух окружностей в локальной угловой плоскости."""
     if distance >= radius_a + radius_b:
         return 0.0
     if distance <= abs(radius_a - radius_b):
@@ -424,11 +454,11 @@ def _circle_overlap_area(radius_a: float, radius_b: float, distance: float) -> f
 
 
 def _srp_illumination_factor(r_sc: np.ndarray, r_sun: np.ndarray, shadow_model: str) -> float:
-    """Fraction of the solar disk visible from the spacecraft.
+    """Доля солнечного диска, видимая с космического аппарата.
 
-    `none` returns 1.0. `cylindrical` uses an infinite cylinder behind Earth.
-    `conical` models Sun and Earth as angular disks and returns a smooth
-    penumbra factor in [0, 1].
+    `none` возвращает 1.0. `cylindrical` использует бесконечный цилиндр за Землёй.
+    `conical` моделирует Солнце и Землю как угловые диски и возвращает гладкий
+    коэффициент полутени в диапазоне [0, 1].
     """
     model = _normalize_srp_shadow_model(shadow_model)
     if model == "none":
@@ -472,7 +502,7 @@ def _srp_illumination_factor(r_sc: np.ndarray, r_sun: np.ndarray, shadow_model: 
 
 
 def _space_weather_sample_for_config(config: PropagationConfig, dt: datetime):
-    """Return configured space-weather indices or explicit quiet constants."""
+    """Вернуть настроенные индексы космической погоды или явные спокойные константы."""
     if config.environment.space_weather_file is None:
         return quiet_space_weather_sample()
     try:
@@ -533,7 +563,7 @@ def _nrlmsise_density_kg_m3(
         return rho_g_cm3 * 1000.0
     except Exception:
         # Если конкретная сборка/версия nrlmsise00 ожидает иной формат аргументов
-        # или не смогла вычислить плотность, переключаемся на fallback-модель.
+        # или не смогла вычислить плотность, переключаемся на резервную модель.
         return np.nan
 
 
@@ -599,10 +629,10 @@ def _solar_radiation_pressure_acceleration(
 
 
 def _earth_ir_pressure_acceleration(state: np.ndarray, config: PropagationConfig) -> np.ndarray:
-    """Isotropic Earth thermal-IR radiation pressure acceleration [m/s^2].
+    """Ускорение от изотропного теплового ИК-излучения Земли [м/с^2].
 
-    The model treats Earth as a spherical isotropic emitter with mean outgoing
-    longwave flux `EARTH_IR_FLUX_W_M2` at radius `R_EARTH`.
+    Модель рассматривает Землю как сферический изотропный излучатель со средним
+    исходящим длинноволновым потоком `EARTH_IR_FLUX_W_M2` на радиусе `R_EARTH`.
     """
     model = _normalize_earth_radiation_model(
         config.environment.force_models.earth_radiation_model
@@ -627,7 +657,7 @@ def _earth_ir_pressure_acceleration(state: np.ndarray, config: PropagationConfig
 
 
 def _relativistic_acceleration(state: np.ndarray, config: PropagationConfig) -> np.ndarray:
-    """Schwarzschild post-Newtonian correction for Earth central gravity [m/s^2]."""
+    """Постньютоновская поправка Шварцшильда для центральной гравитации Земли [м/с^2]."""
     model = _normalize_relativity_model(config.environment.force_models.relativity_model)
     if model == "none":
         return np.zeros(3)
@@ -652,7 +682,7 @@ def _solid_earth_tide_acceleration(
     config: PropagationConfig,
     t_seconds: float,
 ) -> np.ndarray:
-    """Degree-2 solid Earth tide correction from Moon and Sun [m/s^2]."""
+    """Поправка прилива твёрдой Земли степени 2 от Луны и Солнца [м/с^2]."""
     model = _normalize_tide_model(config.environment.force_models.tide_model)
     if model == "none":
         return np.zeros(3)
@@ -676,6 +706,7 @@ def _total_acceleration(
 ) -> np.ndarray:
     """Сумма всех включённых в конфигурации ускорений-возмущений."""
     fm = config.environment.force_models
+    scales = config.environment.force_scale_factors
     r = state[:3]
 
     a = np.zeros(3)
@@ -688,17 +719,31 @@ def _total_acceleration(
                 j2_frame=fm.j2_frame,
                 epoch_seconds=config.epoch_seconds,
                 t_seconds=t_seconds,
+                j2_scale=float(scales.get("j2", 1.0)),
             )
         elif gravity_model == "egm2008":
-            a += _egm2008_acceleration(r, config, t_seconds)
+            a += _egm2008_acceleration(
+                r,
+                config,
+                t_seconds,
+                harmonic_scale=float(scales.get("gravity_harmonics", 1.0)),
+            )
 
     if fm.third_body_sun:
         r_sun = _body_position_gcrs("sun", config.epoch_seconds, t_seconds)
-        a += _third_body_acceleration(r, r_sun, MU_SUN)
+        a += float(scales.get("third_body_sun", 1.0)) * _third_body_acceleration(
+            r,
+            r_sun,
+            MU_SUN,
+        )
 
     if fm.third_body_moon:
         r_moon = _body_position_gcrs("moon", config.epoch_seconds, t_seconds)
-        a += _third_body_acceleration(r, r_moon, MU_MOON)
+        a += float(scales.get("third_body_moon", 1.0)) * _third_body_acceleration(
+            r,
+            r_moon,
+            MU_MOON,
+        )
 
     if fm.atmospheric_drag:
         a += _drag_acceleration(state, config, t_seconds)
@@ -710,10 +755,17 @@ def _total_acceleration(
         a += _earth_ir_pressure_acceleration(state, config)
 
     if fm.relativity_model != "none":
-        a += _relativistic_acceleration(state, config)
+        a += float(scales.get("relativity", 1.0)) * _relativistic_acceleration(
+            state,
+            config,
+        )
 
     if fm.tide_model != "none":
-        a += _solid_earth_tide_acceleration(state, config, t_seconds)
+        a += float(scales.get("solid_earth_tide", 1.0)) * _solid_earth_tide_acceleration(
+            state,
+            config,
+            t_seconds,
+        )
 
     return a
 
@@ -732,7 +784,11 @@ def _fallback_two_body_propagation(config: PropagationConfig) -> tuple[np.ndarra
     но фактически здесь уже не "two-body", а многосиловая модель.
     """
     state = config.initial_state.astype(float).copy()
-    times = _output_times(config.duration_seconds, config.step_seconds)
+    times = (
+        config.output_times_seconds
+        if config.output_times_seconds is not None
+        else _output_times(config.duration_seconds, config.step_seconds)
+    )
     states = np.zeros((len(times), 6), dtype=float)
 
     for idx, t in tqdm(enumerate(times), total=len(times)):
@@ -750,12 +806,16 @@ def _fallback_two_body_propagation(config: PropagationConfig) -> tuple[np.ndarra
 
 
 def _dop853_propagation(config: PropagationConfig) -> tuple[np.ndarray, np.ndarray]:
-    """Adaptive DOP853 integration with saved states on the configured output grid.
+    """Адаптивное интегрирование DOP853 с сохранением состояний на заданной выходной сетке.
 
-    `step_seconds` controls only `t_eval`; SciPy chooses internal steps from
-    `rtol` and the 6-component `atol` vector.
+    `step_seconds` управляет только `t_eval`; SciPy выбирает внутренние шаги
+    по `rtol` и 6-компонентному вектору `atol`.
     """
-    times = _output_times(config.duration_seconds, config.step_seconds)
+    times = (
+        config.output_times_seconds
+        if config.output_times_seconds is not None
+        else _output_times(config.duration_seconds, config.step_seconds)
+    )
     if config.duration_seconds == 0.0:
         return times + config.epoch_seconds, config.initial_state.reshape(1, 6).copy()
 
@@ -784,7 +844,7 @@ def propagate_orbit(
     """Пропагация орбиты.
 
     Сейчас backend-переключатель оставлен как интерфейсная заготовка:
-    расчёт выполняется fallback-интегратором из этого модуля.
+    расчёт выполняется резервным интегратором из этого модуля.
     """
 
     _ = backend
